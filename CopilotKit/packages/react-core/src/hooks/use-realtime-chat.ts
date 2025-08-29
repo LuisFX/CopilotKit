@@ -82,6 +82,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   // Track processed items to avoid duplicates
   const processedItemIds = useRef<Set<string>>(new Set());
   const registeredTools = useRef<RealtimeToolDefinition[]>([]);
+  // Track message contents to prevent duplicates with different IDs
+  const sentMessages = useRef<Map<string, string>>(new Map()); // role:content -> itemId
   
   // Audio level monitoring
   useEffect(() => {
@@ -117,58 +119,25 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   // Handle realtime events
   const handleRealtimeEvent = useCallback(async (event: any) => {
     const { type } = event;
+    const timestamp = new Date().toLocaleTimeString();
     
-    // Debug: Log ALL events to find where user transcript appears
-    console.log(`[RealtimeChat] Event: ${type}`, event);
-    
-    // Special logging for events that might contain transcripts
-    if (event.transcript || event.item?.content?.some?.((c: any) => c.transcript)) {
-      console.log("[RealtimeChat] 🎯 FOUND TRANSCRIPT IN EVENT:", type, event);
+    // Focus on message order logging
+    if (type.includes("conversation.item") || type.includes("response.audio_transcript")) {
+      const itemId = event.item_id || event.item?.id;
+      const role = event.item?.role;
+      console.log(`[${timestamp}] ${type} | id: ${itemId} | role: ${role}`);
     }
     
     switch (type) {
-      // Handle conversation updates - these often contain transcripts after initial creation
+      // Skip conversation.updated for now to avoid duplicates
       case "conversation.updated": {
-        const item = event.item;
-        if (!item) break;
-        
-        console.log("[RealtimeChat] conversation.updated with item:", JSON.stringify(item, null, 2));
-        
-        // Check if this is a user message update with transcript
-        if (item.type === "message" && item.role === "user" && item.content && Array.isArray(item.content)) {
-          for (const contentItem of item.content) {
-            if (contentItem?.type === "input_audio" && contentItem.transcript) {
-              console.log("[RealtimeChat] ✅ Found user transcript in conversation.updated:", contentItem.transcript);
-              
-              // Send the user message with transcript
-              const transcriptKey = `${item.id}_user_transcript`;
-              if (!processedItemIds.current.has(transcriptKey)) {
-                processedItemIds.current.add(transcriptKey);
-                
-                if (sendCopilotMessage) {
-                  void sendCopilotMessage({
-                    id: item.id,
-                    role: "user",
-                    content: contentItem.transcript,
-                  }).then(() => {
-                    console.log("[RealtimeChat] ✅ User message sent to CopilotKit successfully");
-                  }).catch((error: any) => {
-                    console.error("[RealtimeChat] ❌ Failed to send user message:", error);
-                  });
-                } else {
-                  console.error("[RealtimeChat] sendCopilotMessage is not available");
-                }
-              }
-              break;
-            }
-          }
-        }
+        // We're relying on specific events instead
         break;
       }
       
       case "conversation.item.created": {
         const item = event.item;
-        console.log("[RealtimeChat] Processing conversation.item.created:", JSON.stringify(item, null, 2));
+        // Minimal logging for clarity
         
         // Handle different item types
         if (item && !processedItemIds.current.has(item.id)) {
@@ -182,72 +151,35 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
             role = item.role === "user" ? "user" : "assistant";
             
             if (item.content && Array.isArray(item.content)) {
-              console.log(`[RealtimeChat] ${role} message content array:`, JSON.stringify(item.content, null, 2));
-              
-              // Extract text/transcript from content items
-              for (const contentItem of item.content) {
-                if (contentItem?.type === "text" && contentItem.text) {
-                  content = contentItem.text;
-                  break;
-                } else if (contentItem?.type === "input_text" && contentItem.text) {
-                  content = contentItem.text;
-                  break;
-                } else if (contentItem?.type === "input_audio" && contentItem.transcript) {
-                  // User audio with transcript
-                  content = contentItem.transcript;
-                  console.log("[RealtimeChat] Found user audio transcript in content:", content);
-                  break;
-                } else if (contentItem?.type === "audio" && contentItem.transcript) {
-                  // Assistant audio with transcript
-                  content = contentItem.transcript;
-                  break;
-                }
-              }
+              // Extract text content - simplified
+              content = item.content
+                .filter((c: any) => c?.type === "text" || c?.type === "input_text" || c?.transcript)
+                .map((c: any) => c.text || c.transcript || "")
+                .join("")
+                .trim();
             }
             
-            // For user messages with input_audio, check if transcript is available
-            if (role === "user" && !content && item.content?.some((c: any) => c?.type === "input_audio")) {
-              console.log("[RealtimeChat] User audio message detected without transcript, will wait for later events");
-              // Remove from processed items so we can process it again when transcript arrives
+            // Skip user messages without content - wait for transcription event
+            if (role === "user" && !content) {
               processedItemIds.current.delete(item.id);
               break;
             }
           }
           
-          // Handle function_call items (for tool execution)
-          if (item.type === "function_call") {
-            // We'll handle this in response.function_call_arguments.done
-            console.log("[RealtimeChat] Function call item created:", item.name);
-            break;
-          }
-          
-          // Handle function_call_output items
-          if (item.type === "function_call_output") {
-            // Skip these as they're internal
+          // Skip function calls - handled elsewhere
+          if (item.type === "function_call" || item.type === "function_call_output") {
             break;
           }
           
           // Send message to CopilotKit if we have content
-          if (content) {
-            console.log("[RealtimeChat] Sending message to CopilotKit:", {
+          if (content && sendCopilotMessage) {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] SEND TO UI: ${item.id} | ${role}: "${content.substring(0, 50)}..."`);
+            sendCopilotMessage({
               id: item.id,
               role,
               content,
             });
-            
-            if (sendCopilotMessage) {
-              void sendCopilotMessage({
-                id: item.id,
-                role,
-                content,
-              }).then(() => {
-                console.log("[RealtimeChat] Message sent successfully");
-              }).catch((error: any) => {
-                console.error("[RealtimeChat] Failed to send message:", error);
-              });
-            } else {
-              console.error("[RealtimeChat] sendCopilotMessage is not available");
-            }
           }
         }
         break;
@@ -257,27 +189,29 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         const transcript = event.transcript?.trim();
         const itemId = event.item_id;
         
-        console.log("[RealtimeChat] ✅ User transcription completed event:", { itemId, transcript });
-        
         if (transcript && itemId) {
           const transcriptKey = `${itemId}_user_transcript`;
           if (!processedItemIds.current.has(transcriptKey)) {
             processedItemIds.current.add(transcriptKey);
             
-            console.log("[RealtimeChat] ✅ Sending user message to CopilotKit:", transcript);
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] USER TRANSCRIPT: ${itemId} | "${transcript.substring(0, 50)}..."`);
             
             if (sendCopilotMessage) {
-              void sendCopilotMessage({
-                id: itemId,
-                role: "user",
-                content: transcript,
-              }).then(() => {
-                console.log("[RealtimeChat] ✅ User message sent successfully");
-              }).catch((error: any) => {
-                console.error("[RealtimeChat] ❌ Failed to send user message:", error);
-              });
-            } else {
-              console.error("[RealtimeChat] sendCopilotMessage is not available");
+              // Check for duplicate content
+              const messageKey = `user:${transcript}`;
+              const existingId = sentMessages.current.get(messageKey);
+              
+              if (existingId && existingId !== itemId) {
+                console.log(`[${timestamp}] USER DUPLICATE BLOCKED: ${itemId} (already sent as ${existingId})`);
+              } else {
+                sentMessages.current.set(messageKey, itemId);
+                sendCopilotMessage({
+                  id: itemId,
+                  role: "user",
+                  content: transcript,
+                });
+              }
             }
           }
         }
@@ -291,25 +225,15 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         if (transcript && itemId && !processedItemIds.current.has(`${itemId}_transcript`)) {
           processedItemIds.current.add(`${itemId}_transcript`);
           
-          console.log("[RealtimeChat] Assistant audio transcript done:", transcript);
-          console.log("[RealtimeChat] Sending assistant message to CopilotKit:", {
-            id: itemId,
-            role: "assistant",
-            content: transcript,
-          });
+          const timestamp = new Date().toLocaleTimeString();
+          console.log(`[${timestamp}] ASSISTANT TRANSCRIPT: ${itemId} | "${transcript.substring(0, 50)}..."`);
           
           if (sendCopilotMessage) {
-            void sendCopilotMessage({
+            sendCopilotMessage({
               id: itemId,
               role: "assistant",
               content: transcript,
-            }).then(() => {
-              console.log("[RealtimeChat] Assistant message sent successfully");
-            }).catch((error: any) => {
-              console.error("[RealtimeChat] Failed to send assistant message:", error);
             });
-          } else {
-            console.error("[RealtimeChat] sendCopilotMessage is not available");
           }
         }
         break;
@@ -440,9 +364,10 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           session: {
             modalities: ["text", "audio"],
             voice: config.voice || "alloy",
-            instructions: "You are a helpful AI assistant integrated with CopilotKit. Respond naturally to voice input.",
+            instructions: "You are a helpful AI assistant integrated with CopilotKit. Respond naturally to voice input. IMPORTANT: Always respond in English only, regardless of the input language.",
             input_audio_transcription: {
-              model: "whisper-1"
+              model: "whisper-1",
+              language: "en"  // Force English transcription
             },
             turn_detection: config.turnDetection || {
               type: "server_vad",
@@ -523,6 +448,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
     setStatus("idle");
     setIsMicActive(true);
     processedItemIds.current.clear();
+    sentMessages.current.clear();
   }, []);
   
   // Toggle microphone
