@@ -29,7 +29,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { VoiceControls } from "./VoiceControls";
-import { useMemo } from "react";
+import { useRealtimeActions } from "@/lib/use-realtime-actions";
 
 // Define the form schema with Zod
 const formSchema = z.object({
@@ -88,7 +88,30 @@ export function IncidentReportForm() {
     value: form,
   }, [form]);
 
-  const copilotAction = useCopilotAction({
+  // Action for showing confirmation UI through voice
+  useCopilotAction({
+    name: "confirmIncidentReport",
+    description: "Show confirmation dialog for the incident report before filing",
+    parameters: [
+      {
+        name: "summary",
+        type: "string",
+        required: true,
+        description: "Summary of the incident report to confirm"
+      }
+    ],
+    render: ({ args }) => {
+      return (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <h3 className="font-semibold text-blue-900 mb-2">📋 Confirming Incident Report</h3>
+          <p className="text-blue-800">{args.summary}</p>
+          <p className="text-sm text-blue-600 mt-2">The form has been filled. Please review and submit.</p>
+        </div>
+      );
+    },
+  });
+
+  useCopilotAction({
     name: "fillIncidentReportForm",
     description: "Fill out the incident report form",
     parameters: [
@@ -158,77 +181,36 @@ export function IncidentReportForm() {
     },
   });
 
-  // Convert CopilotKit action to Realtime tool format
-  const realtimeTools = useMemo(() => {
-    return [{
-      type: "function",
-      name: "fillIncidentReportForm",
-      description: "Fill out the incident report form with the provided information",
-      parameters: {
-        type: "object",
-        properties: {
-          fullName: {
-            type: "string",
-            description: "The full name of the person reporting the incident"
-          },
-          email: {
-            type: "string",
-            description: "The email address of the person reporting the incident"
-          },
-          incidentDescription: {
-            type: "string",
-            description: "Detailed description of the incident (at least 30 words)"
-          },
-          date: {
-            type: "string",
-            description: "The date when the incident occurred (YYYY-MM-DD format)"
-          },
-          incidentLevel: {
-            type: "string",
-            enum: ["low", "medium", "high", "critical"],
-            description: "The severity level of the incident"
-          },
-          incidentType: {
-            type: "string",
-            enum: ["phishing", "malware", "data_breach", "unauthorized_access", "ddos", "other"],
-            description: "The type of security incident"
-          },
-          suggestedActions: {
-            type: "string",
-            description: "Suggested actions to take based on the incident, formatted as a bulleted list"
-          }
-        },
-        required: ["fullName", "email", "incidentDescription", "date", "incidentLevel", "incidentType", "suggestedActions"]
+  // Bridge CopilotKit actions with Realtime tools
+  const { realtimeTools, handleToolCall } = useRealtimeActions({
+    onFillForm: (args) => {
+      // Fill the form with the provided data
+      form.setValue("name", args.fullName || "");
+      form.setValue("email", args.email || "");
+      form.setValue("description", args.incidentDescription || "");
+      form.setValue("incidentLevel", args.incidentLevel || "low");
+      form.setValue("incidentType", args.incidentType || "other");
+      form.setValue("suggestedActions", args.suggestedActions || "");
+      
+      // Parse and set date if provided
+      if (args.date) {
+        const parsedDate = new Date(args.date);
+        if (!isNaN(parsedDate.getTime())) {
+          form.setValue("date", parsedDate);
+        }
       }
-    }];
-  }, []);
+    },
+    onConfirm: (summary) => {
+      // This would typically show a toast or modal
+      console.log("Showing confirmation:", summary);
+    }
+  });
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-4">
       <VoiceControls 
         tools={realtimeTools}
-        onToolCall={async (toolName, args) => {
-          if (toolName === "fillIncidentReportForm") {
-            // Execute the CopilotKit action
-            form.setValue("fullName", args.fullName || "");
-            form.setValue("email", args.email || "");
-            form.setValue("incidentDescription", args.incidentDescription || "");
-            form.setValue("incidentLevel", args.incidentLevel || "low");
-            form.setValue("incidentType", args.incidentType || "other");
-            form.setValue("suggestedActions", args.suggestedActions || "");
-            
-            // Parse and set date if provided
-            if (args.date) {
-              const parsedDate = new Date(args.date);
-              if (!isNaN(parsedDate.getTime())) {
-                form.setValue("date", parsedDate);
-              }
-            }
-            
-            return { success: true, message: "Form filled successfully" };
-          }
-          return { error: "Unknown tool" };
-        }}
+        onToolCall={handleToolCall}
       />
       <Card>
       <CardHeader>
