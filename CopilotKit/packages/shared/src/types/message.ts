@@ -27,4 +27,30 @@ export type UserMessage = agui.UserMessage & {
   image?: ImageData;
 };
 
-export type Message = AIMessage | ToolResult | UserMessage | SystemMessage | DeveloperMessage;
+// Voice/Realtime specific message types
+export type VoiceTranscriptMessage = {
+  id: string;
+  role: "voice_transcript";
+  content: string;
+  audioData?: {
+    duration?: number;
+    confidence?: number;
+    timestamp?: number;
+  };
+};
+
+export type RealtimeActionMessage = {
+  id: string;
+  role: "realtime_action";
+  name: string;
+  arguments: Record<string, any>;
+  content?: string; // Optional content for compatibility
+  generativeUI?: (props?: any) => any;
+  status?: "pending" | "executing" | "completed" | "failed";
+  voiceMetadata?: {
+    triggeredBy: "voice" | "text";
+    timestamp?: number;
+  };
+};
+
+export type Message = AIMessage | ToolResult | UserMessage | SystemMessage | DeveloperMessage | VoiceTranscriptMessage | RealtimeActionMessage;

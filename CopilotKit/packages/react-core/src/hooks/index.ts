@@ -19,3 +19,7 @@ export { useLangGraphInterrupt } from "./use-langgraph-interrupt";
 export { useLangGraphInterruptRender } from "./use-langgraph-interrupt-render";
 export { useCopilotAdditionalInstructions } from "./use-copilot-additional-instructions";
 export type { Tree, TreeNode } from "./use-tree";
+export { useRealtimeChat } from "./use-realtime-chat";
+export type { RealtimeConfig, RealtimeToolDefinition, UseRealtimeChatReturn } from "./use-realtime-chat";
+export { useRealtimeActionHandler } from "./use-realtime-action-handler";
+export type { UseRealtimeActionHandlerReturn } from "./use-realtime-action-handler";
