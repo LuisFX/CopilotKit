@@ -316,6 +316,21 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         break;
       }
       
+      // Silently ignore streaming delta events - we handle the complete versions
+      case "response.function_call_arguments.delta":
+      case "response.audio_transcript.delta":
+      case "response.text.delta":
+      case "response.audio.delta":
+      case "input_audio_buffer.speech_started":
+      case "input_audio_buffer.speech_stopped":
+      case "input_audio_buffer.committed":
+      case "response.created":
+      case "response.done":
+      case "conversation.item.truncated":
+      case "rate_limits.updated":
+        // These are expected streaming/status events that we don't need to process
+        break;
+      
       // Log other events in debug mode
       default: {
         if (config.debug) {
@@ -364,7 +379,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           session: {
             modalities: ["text", "audio"],
             voice: config.voice || "alloy",
-            instructions: "You are a helpful AI assistant integrated with CopilotKit. Respond naturally to voice input. IMPORTANT: Always respond in English only, regardless of the input language.",
+            instructions: "You are a helpful AI assistant for filing incident reports. When users provide incident details (name, email, incident type, severity, etc.), use the 'fillIncidentReportForm' tool to populate the form. Only use 'confirmIncidentReport' to show a summary AFTER filling the form. IMPORTANT: Always respond in English only.",
             input_audio_transcription: {
               model: "whisper-1",
               language: "en"  // Force English transcription

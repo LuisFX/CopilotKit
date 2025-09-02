@@ -30,6 +30,7 @@ export default function RootLayout({
         <CopilotKit 
           publicApiKey={process.env.NEXT_PUBLIC_COPILOT_PUBLIC_API_KEY}
           showDevConsole={false}
+          realtimeMode={true}
         >
           {children}
         </CopilotKit>

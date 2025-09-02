@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -188,7 +189,7 @@ export function IncidentReportForm() {
       form.setValue("name", args.fullName || "");
       form.setValue("email", args.email || "");
       form.setValue("description", args.incidentDescription || "");
-      form.setValue("incidentLevel", args.incidentLevel || "low");
+      form.setValue("impactLevel", args.incidentLevel || "low");
       form.setValue("incidentType", args.incidentType || "other");
       form.setValue("suggestedActions", args.suggestedActions || "");
       
@@ -199,10 +200,6 @@ export function IncidentReportForm() {
           form.setValue("date", parsedDate);
         }
       }
-    },
-    onConfirm: (summary) => {
-      // This would typically show a toast or modal
-      console.log("Showing confirmation:", summary);
     }
   });
 
