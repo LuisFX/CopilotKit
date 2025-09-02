@@ -4,17 +4,15 @@
  */
 
 import { useMemo, useCallback } from "react";
-import { useCopilotContext, useCopilotChatInternal } from "@copilotkit/react-core";
-import { ActionExecutionMessage } from "@copilotkit/runtime-client-gql";
+import { useRealtimeActionHandler } from "@copilotkit/react-core";
 
 interface RealtimeActionsProps {
   onFillForm?: (args: any) => void;
 }
 
 export function useRealtimeActions(props?: RealtimeActionsProps) {
-  // Get access to CopilotKit's actions registry
-  const { actions } = useCopilotContext();
-  const { appendMessage, sendMessage } = useCopilotChatInternal();
+  // Use CopilotKit's realtime action handler for proper voice integration
+  const { executeVoiceAction, getAvailableActions } = useRealtimeActionHandler();
   
   // Convert CopilotKit actions to Realtime tool format
   const realtimeTools = useMemo(() => {
@@ -94,57 +92,18 @@ export function useRealtimeActions(props?: RealtimeActionsProps) {
       return { success: true, message: "Form filled successfully" };
     }
 
-    // For confirmIncidentReport, use CopilotKit's action render
-    if (toolName === "confirmIncidentReport") {
-      // Find the action in CopilotKit's registry
-      const action = Object.values(actions).find((a: any) => a.name === "confirmIncidentReport") as any;
-      
-      console.log(`[RealtimeActions] Looking for confirmIncidentReport action`);
-      console.log(`[RealtimeActions] Found action:`, !!action);
-      console.log(`[RealtimeActions] Action has render:`, !!action?.render);
-      console.log(`[RealtimeActions] All registered actions:`, Object.values(actions).map((a: any) => a.name));
-      
-      if (action && action.render) {
-        // Try both approaches to ensure the message appears
-        const messageId = `confirm-${Date.now()}`;
-        
-        // Approach 1: Create ActionExecutionMessage and append it
-        const actionMessage = new ActionExecutionMessage({
-          id: messageId,
-          name: "confirmIncidentReport",
-          arguments: args,
-          parentMessageId: null,
-        });
-        
-        console.log(`[RealtimeActions] Creating ActionExecutionMessage with id: ${messageId}`);
-        
-        // Use appendMessage to add the GQL message directly
-        await appendMessage(actionMessage, { followUp: false });
-        
-        // Approach 2: Also send a regular message with the confirmation summary
-        // This ensures something appears in the chat even if generativeUI doesn't work
-        await sendMessage({
-          id: `${messageId}-text`,
-          role: "assistant",
-          content: `✅ ${args.summary || "Incident report confirmed and ready for submission."}`,
-        }, { followUp: false });
-        
-        console.log(`[RealtimeActions] Messages added successfully`);
-      } else {
-        console.warn(`[RealtimeActions] No action found or no render function for confirmIncidentReport`);
-        // Fallback: just send a text confirmation
-        await sendMessage({
-          id: `confirm-fallback-${Date.now()}`,
-          role: "assistant", 
-          content: `✅ ${args.summary || "Incident report confirmed."}`,
-        }, { followUp: false });
-      }
-      
-      return { success: true, message: "Confirmation shown" };
+    // For other actions, use CopilotKit's voice action handler
+    // This will properly execute the action and render GenerativeUI if available
+    try {
+      const result = await executeVoiceAction(toolName, args);
+      console.log(`[RealtimeActions] Voice action executed successfully:`, result);
+      return result || { success: true };
+    } catch (error) {
+      console.error(`[RealtimeActions] Voice action failed:`, error);
+      // Action might not exist, return error
+      return { error: `Action failed: ${(error as Error).message}` };
     }
-
-    return { error: `Unknown tool: ${toolName}` };
-  }, [props, actions, appendMessage, sendMessage]);
+  }, [props, executeVoiceAction]);
 
   return {
     realtimeTools,

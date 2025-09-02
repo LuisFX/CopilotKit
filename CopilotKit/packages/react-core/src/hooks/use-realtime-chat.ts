@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCopilotChat } from "./use-copilot-chat_internal";
+import { useRealtimeActionHandler } from "./use-realtime-action-handler";
 
 export interface RealtimeConfig {
   /** Endpoint to fetch ephemeral token for OpenAI Realtime */
@@ -66,6 +67,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   
   const chatResult = useCopilotChat();
   const sendCopilotMessage = chatResult?.sendMessage;
+  const { executeVoiceAction, sendVoiceGenerativeUI } = useRealtimeActionHandler();
   
   // WebRTC references
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -249,43 +251,62 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           console.log("[RealtimeChat] Tool call:", toolName, args);
         }
         
-        // Execute the tool call via callback
-        if (config.onToolCall) {
-          config.onToolCall(toolName, args)
-            .then(result => {
-              // Send function output back to OpenAI Realtime
-              if (dcRef.current && dcRef.current.readyState === "open") {
-                const outputEvent = {
-                  type: "conversation.item.create",
-                  item: {
-                    type: "function_call_output",
-                    call_id: callId,
-                    output: JSON.stringify(result || { success: true })
-                  }
-                };
-                dcRef.current.send(JSON.stringify(outputEvent));
-                
-                if (config.debug) {
-                  console.log("[RealtimeChat] Sent tool result:", outputEvent);
+        // Handle voice-triggered actions with GenerativeUI support
+        const handleVoiceAction = async () => {
+          try {
+            let result = null;
+            
+            // Try to execute through CopilotKit's action system first
+            // This will handle GenerativeUI rendering automatically
+            try {
+              result = await executeVoiceAction(toolName, args);
+              console.log(`[RealtimeChat] Voice action executed for ${toolName}`);
+            } catch (actionError) {
+              // Action might not exist in CopilotKit, try custom handler
+              console.log(`[RealtimeChat] CopilotKit action not found for ${toolName}, trying custom handler...`);
+              
+              // Fallback to custom onToolCall if provided
+              if (config.onToolCall) {
+                result = await config.onToolCall(toolName, args);
+              } else {
+                throw actionError;
+              }
+            }
+            
+            // Send result back to OpenAI Realtime
+            if (dcRef.current && dcRef.current.readyState === "open") {
+              const outputEvent = {
+                type: "conversation.item.create",
+                item: {
+                  type: "function_call_output",
+                  call_id: callId,
+                  output: JSON.stringify(result || { success: true })
                 }
+              };
+              dcRef.current.send(JSON.stringify(outputEvent));
+              
+              if (config.debug) {
+                console.log("[RealtimeChat] Sent tool result:", outputEvent);
               }
-            })
-            .catch(error => {
-              console.error("[RealtimeChat] Tool execution error:", error);
-              // Send error back to OpenAI Realtime
-              if (dcRef.current && dcRef.current.readyState === "open") {
-                const errorEvent = {
-                  type: "conversation.item.create",
-                  item: {
-                    type: "function_call_output",
-                    call_id: callId,
-                    output: JSON.stringify({ error: error.message || "Tool execution failed" })
-                  }
-                };
-                dcRef.current.send(JSON.stringify(errorEvent));
-              }
-            });
-        }
+            }
+          } catch (error) {
+            console.error("[RealtimeChat] Tool execution error:", error);
+            // Send error back to OpenAI Realtime
+            if (dcRef.current && dcRef.current.readyState === "open") {
+              const errorEvent = {
+                type: "conversation.item.create",
+                item: {
+                  type: "function_call_output",
+                  call_id: callId,
+                  output: JSON.stringify({ error: (error as Error).message || "Tool execution failed" })
+                }
+              };
+              dcRef.current.send(JSON.stringify(errorEvent));
+            }
+          }
+        };
+        
+        handleVoiceAction();
         break;
       }
       
@@ -338,7 +359,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         }
       }
     }
-  }, [sendCopilotMessage, config.debug]);
+  }, [sendCopilotMessage, config.debug, config.onToolCall, executeVoiceAction, sendVoiceGenerativeUI]);
   
   // Connect to OpenAI Realtime
   const connect = useCallback(async () => {
