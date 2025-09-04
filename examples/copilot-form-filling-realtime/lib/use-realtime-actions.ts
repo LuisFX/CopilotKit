@@ -88,6 +88,34 @@ export function useRealtimeActions(props?: RealtimeActionsProps) {
           },
           required: ["summary"]
         }
+      },
+      {
+        type: "function",
+        name: "scheduleAppointment",
+        description: "Schedule a medical appointment for the patient.",
+        parameters: {
+          type: "object",
+          properties: {
+            preferredDate: {
+              type: "string",
+              description: "Preferred date for the appointment (ISO or natural language)"
+            },
+            preferredTime: {
+              type: "string",
+              description: "Preferred time for the appointment (e.g., 10:30 AM)"
+            },
+            appointmentType: {
+              type: "string",
+              enum: ["new_patient", "follow_up", "telemedicine", "urgent_care", "lab_work", "imaging"],
+              description: "Type of appointment"
+            },
+            provider: {
+              type: "string",
+              description: "Preferred provider or specialty (optional)"
+            }
+          },
+          required: ["preferredDate", "preferredTime", "appointmentType"]
+        }
       }
     ];
   }, []);

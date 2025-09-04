@@ -24,5 +24,12 @@ Pass a brief summary of what was filed to confirmMedicalIntake (e.g., "Medical i
 DO NOT summarize the medical intake form back to the user verbally, use the confirmMedicalIntake action instead.
 BE AS BRIEF AS POSSIBLE when communicating back to the user.
 
+If the user asks to book, schedule, or set an appointment, use scheduleAppointment with:
+- preferredDate: their desired date (accept natural language like "next Tuesday"),
+- preferredTime: preferred time of day (e.g., 10:30 AM),
+- appointmentType: one of new_patient, follow_up, telemedicine, urgent_care, lab_work, imaging,
+- provider: optional preferred provider or specialty.
+After calling scheduleAppointment, wait for confirmation before proceeding with other actions.
+
 Today is ${new Date().toLocaleDateString()}. If the user mentions dates, use your best judgement to determine the appropriate date.
 `

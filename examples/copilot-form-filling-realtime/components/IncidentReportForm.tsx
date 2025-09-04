@@ -129,6 +129,142 @@ export function MedicalIntakeForm() {
     },
   });
 
+  // GenerativeUI: Schedule Appointment with editable fields and confirmation
+  useCopilotAction({
+    name: "scheduleAppointment",
+    description: "Schedule a medical appointment for the patient",
+    parameters: [
+      {
+        name: "preferredDate",
+        type: "string",
+        required: true,
+        description: "Preferred date for the appointment (ISO or natural language)"
+      },
+      {
+        name: "preferredTime",
+        type: "string",
+        required: true,
+        description: "Preferred time for the appointment (e.g., 10:30 AM)"
+      },
+      {
+        name: "appointmentType",
+        type: "string",
+        required: true,
+        description: "Type of appointment",
+        enum: [
+          "new_patient",
+          "follow_up",
+          "telemedicine",
+          "urgent_care",
+          "lab_work",
+          "imaging"
+        ]
+      },
+      {
+        name: "provider",
+        type: "string",
+        required: false,
+        description: "Preferred provider or specialty (optional)"
+      }
+    ],
+    renderAndWaitForResponse: ({ args, respond, status }) => {
+      function AppointmentEditor() {
+        const [preferredDate, setPreferredDate] = React.useState<string>(args.preferredDate || "");
+        const [preferredTime, setPreferredTime] = React.useState<string>(args.preferredTime || "");
+        const [appointmentType, setAppointmentType] = React.useState<string>(args.appointmentType || "new_patient");
+        const [provider, setProvider] = React.useState<string>(args.provider || "");
+
+        const isBusy = status === "executing" || status === "inProgress";
+
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold text-amber-900 mb-3">📅 Appointment Scheduling</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-amber-900">
+              <div>
+                <label className="block text-sm font-medium mb-1">Preferred Date</label>
+                <Input
+                  placeholder="e.g., 2025-09-12 or next Tuesday"
+                  value={preferredDate}
+                  onChange={(e) => setPreferredDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Preferred Time</label>
+                <Input
+                  placeholder="e.g., 10:30 AM"
+                  value={preferredTime}
+                  onChange={(e) => setPreferredTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Appointment Type</label>
+                <Select value={appointmentType} onValueChange={setAppointmentType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new_patient">New Patient</SelectItem>
+                    <SelectItem value="follow_up">Follow-up</SelectItem>
+                    <SelectItem value="telemedicine">Telemedicine</SelectItem>
+                    <SelectItem value="urgent_care">Urgent Care</SelectItem>
+                    <SelectItem value="lab_work">Lab Work</SelectItem>
+                    <SelectItem value="imaging">Imaging</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Provider (Optional)</label>
+                <Input
+                  placeholder="e.g., Dr. Smith or Cardiology"
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-4">
+              <Button
+                onClick={() => respond?.({
+                  confirmed: true,
+                  preferredDate,
+                  preferredTime,
+                  appointmentType,
+                  provider: provider || undefined,
+                })}
+                disabled={isBusy || !preferredDate || !preferredTime || !appointmentType}
+              >
+                Confirm Appointment
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => respond?.({ confirmed: false, reason: "cancelled" })}
+                disabled={isBusy}
+              >
+                Cancel
+              </Button>
+            </div>
+            <p className="text-sm text-amber-700 mt-3">You can adjust details before confirming. We'll check availability and confirm shortly.</p>
+          </div>
+        );
+      }
+
+      if (status === "inProgress" || status === "executing") {
+        return <AppointmentEditor />;
+      }
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <h3 className="font-semibold text-amber-900 mb-2">📅 Appointment Scheduled (Pending Confirmation)</h3>
+          <div className="text-amber-900 space-y-1">
+            <p><span className="font-medium">Preferred date:</span> {args.preferredDate}</p>
+            <p><span className="font-medium">Preferred time:</span> {args.preferredTime}</p>
+            <p><span className="font-medium">Type:</span> {args.appointmentType}</p>
+            {args.provider && <p><span className="font-medium">Provider:</span> {args.provider}</p>}
+          </div>
+          <p className="text-sm text-amber-700 mt-3">Thanks! We received your scheduling request.</p>
+        </div>
+      );
+    },
+  });
+
   useCopilotAction({
     name: "fillMedicalIntakeForm",
     description: "Fill out the medical intake form",
