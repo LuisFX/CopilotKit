@@ -1,6 +1,6 @@
-# 🎙️ CopilotKit Realtime Voice Form Filling Example
+# 🎙️ CopilotKit Realtime Voice Medical Intake Form Example
 
-This example demonstrates how to use CopilotKit's OpenAI Realtime API integration for voice-enabled form filling.
+This example demonstrates how to use CopilotKit's OpenAI Realtime API integration for voice-enabled medical intake form filling.
 
 ## Features
 
@@ -44,18 +44,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 1. **Start Voice Chat**: Click the "Start Voice Chat" button in the voice controls panel
 2. **Allow Microphone Access**: Grant permission when prompted by your browser
 3. **Speak Naturally**: Try saying:
-   - "Fill out the incident report for a phishing attack that happened yesterday"
-   - "Report a malware incident with critical severity"
-   - "Create an incident report for unauthorized access detected this morning"
+   - "Fill out the medical intake form for chest pain with level 7 pain"
+   - "Report a headache that started this morning with moderate severity"
+   - "Create a medical intake for abdominal pain with level 5 pain"
 4. **Watch the Form Fill**: The form fields will automatically populate based on your voice input
 5. **Mute/Unmute**: Use the mute button to control when the AI can hear you
 6. **End Call**: Click "End Call" when finished
 
 ## Voice Commands Examples
 
-- **Basic Fill**: "Fill the form with my name John Doe, email john@example.com"
-- **Incident Report**: "Report a data breach incident that occurred on December 15th with high severity"
-- **Detailed Report**: "Create an incident report for a phishing attack. The attacker sent emails impersonating our IT department. Impact level is medium. Suggested actions include user training and email filtering updates."
+- **Basic Fill**: "Fill the form with my name Sarah Johnson, date of birth March 15th 1985"
+- **Medical Intake**: "Report chest pain that started yesterday with level 7 pain severity"
+- **Detailed Intake**: "Create a medical intake for abdominal pain. The pain started this morning and feels like cramping. Pain level is 5. I have a history of IBS and take medication for it."
 
 ## Technical Details
 
@@ -69,7 +69,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ### Key Components
 
 - `VoiceControls.tsx`: Voice UI controls and WebRTC management
-- `IncidentReportForm.tsx`: Form with integrated voice capabilities
+- `IncidentReportForm.tsx`: Medical intake form with integrated voice capabilities
 - `/api/realtime/token/route.ts`: Backend endpoint for ephemeral tokens
 
 ## Troubleshooting

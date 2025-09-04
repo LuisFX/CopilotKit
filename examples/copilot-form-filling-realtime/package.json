@@ -8,6 +8,14 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "pnpm": {
+    "overrides": {
+      "@copilotkit/runtime-client-gql": "file:../../CopilotKit/packages/runtime-client-gql",
+      "@copilotkit/shared": "file:../../CopilotKit/packages/shared",
+      "@copilotkit/react-core": "file:../../CopilotKit/packages/react-core",
+      "@copilotkit/react-ui": "file:../../CopilotKit/packages/react-ui"
+    }
+  },
   "dependencies": {
     "@copilotkit/react-core": "file:../../CopilotKit/packages/react-core",
     "@copilotkit/react-ui": "file:../../CopilotKit/packages/react-ui",
@@ -18,7 +26,7 @@
     "@radix-ui/react-slot": "^1.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^4.1.0",
+    "date-fns": "^3.6.0",
     "lucide-react": "^0.476.0",
     "next": "15.2.0-canary.76",
     "react": "^19.0.0",

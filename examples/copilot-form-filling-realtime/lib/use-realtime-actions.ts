@@ -19,55 +19,71 @@ export function useRealtimeActions(props?: RealtimeActionsProps) {
     return [
       {
         type: "function",
-        name: "fillIncidentReportForm",
-        description: "Fill out the incident report form fields with user-provided information. Use this when the user provides incident details like name, email, incident type, etc.",
+        name: "fillMedicalIntakeForm",
+        description: "Fill out the medical intake form fields with user-provided information. Use this when the user provides medical details like name, symptoms, chief complaint, etc.",
         parameters: {
           type: "object",
           properties: {
             fullName: {
               type: "string",
-              description: "The full name of the person reporting the incident"
+              description: "The full name of the patient"
             },
-            email: {
+            dateOfBirth: {
               type: "string",
-              description: "The email address of the person reporting the incident"
+              description: "The patient's date of birth"
             },
-            incidentDescription: {
+            phone: {
               type: "string",
-              description: "Detailed description of the incident"
+              description: "The patient's phone number"
             },
-            date: {
+            emergencyContact: {
               type: "string",
-              description: "The date when the incident occurred"
+              description: "The name of the emergency contact person"
             },
-            incidentLevel: {
+            emergencyPhone: {
               type: "string",
-              enum: ["low", "medium", "high", "critical"],
-              description: "The severity level"
+              description: "The emergency contact's phone number"
             },
-            incidentType: {
+            chiefComplaint: {
               type: "string",
-              enum: ["phishing", "malware", "data_breach", "unauthorized_access", "ddos", "other"],
-              description: "The type of incident"
+              enum: ["chest_pain", "headache", "fever", "abdominal_pain", "shortness_of_breath", "dizziness", "nausea", "fatigue", "other"],
+              description: "The primary reason for the visit"
             },
-            suggestedActions: {
+            symptoms: {
               type: "string",
-              description: "Suggested actions to take"
+              description: "Detailed description of symptoms"
+            },
+            painLevel: {
+              type: "string",
+              enum: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+              description: "The pain level on a scale of 1-10"
+            },
+            medicalHistory: {
+              type: "string",
+              description: "Relevant medical history"
+            },
+            currentMedications: {
+              type: "string",
+              description: "Current medications (optional)"
+            },
+            allergies: {
+              type: "string",
+              description: "Known allergies (optional)"
             }
           },
-          required: ["fullName", "email", "incidentDescription", "date", "incidentLevel", "incidentType"]
+          required: ["fullName", "dateOfBirth", "phone", "emergencyContact", "emergencyPhone", "chiefComplaint", "symptoms", "painLevel", "medicalHistory"]
         }
       },
       {
         type: "function",
-        name: "confirmIncidentReport",
+        name: "confirmMedicalIntake",
         description: "Show a confirmation message AFTER the form has been filled. Only use this to display a summary, not to fill the form.",
         parameters: {
           type: "object",
           properties: {
             summary: {
               type: "string",
-              description: "Summary of the incident report to confirm"
+              description: "Summary of the medical intake form to confirm"
             }
           },
           required: ["summary"]
@@ -80,8 +96,8 @@ export function useRealtimeActions(props?: RealtimeActionsProps) {
   const handleToolCall = useCallback(async (toolName: string, args: any) => {
     console.log(`[RealtimeActions] Tool called: ${toolName}`, args);
 
-    // For fillIncidentReportForm, directly call the handler
-    if (toolName === "fillIncidentReportForm") {
+    // For fillMedicalIntakeForm, directly call the handler
+    if (toolName === "fillMedicalIntakeForm") {
       console.log(`[RealtimeActions] Filling form with data:`, args);
       if (props?.onFillForm) {
         props.onFillForm(args);

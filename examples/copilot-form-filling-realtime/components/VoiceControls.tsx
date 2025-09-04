@@ -177,7 +177,7 @@ export function VoiceControls({ tools = [], onToolCall }: VoiceControlsProps) {
       {status === "connected" && (
         <div className="mt-3 text-sm text-gray-600">
           <p>🎙️ Voice chat is active. Speak naturally to fill out the form.</p>
-          <p className="mt-1">Try saying: "Fill out the incident report for a phishing attack that happened yesterday"</p>
+          <p className="mt-1">Try saying: "Fill out the medical intake form for chest pain with level 7 pain"</p>
         </div>
       )}
     </Card>

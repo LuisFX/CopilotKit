@@ -1,12 +1,12 @@
 
 
-# Form-Filling Copilot
-Transform tedious form-filling into natural conversations. Your AI assistant asks the right questions, understands context, and completes forms for you—no more field-by-field drudgery.
+# Medical Intake Form Copilot
+Transform tedious medical form-filling into natural conversations. Your AI assistant asks the right questions, understands medical context, and completes intake forms for you—no more field-by-field drudgery.
 
-[Click here for a running example](https://form-filling-copilot.vercel.app/)
+[Click here for a running example](https://medical-intake-copilot.vercel.app/)
 
 <div align="center">
-  <img src="./preview.gif" alt="Form-Filling Copilot for Security Incident Reports"/>
+  <img src="./preview.gif" alt="Medical Intake Form Copilot"/>
 
   <a href="https://copilotkit.ai" target="_blank">
     <img src="https://img.shields.io/badge/Built%20with-CopilotKit-6963ff" alt="Built with CopilotKit"/>
@@ -31,7 +31,7 @@ Transform tedious form-filling into natural conversations. Your AI assistant ask
 1. Clone the repository:
    ```bash
    git clone https://github.com/CopilotKit/CopilotKit.git
-   cd CopilotKit/examples/copilot-form-filling
+   cd CopilotKit/examples/copilot-form-filling-realtime
    ```
 
 2. Install dependencies:
@@ -107,7 +107,7 @@ This provides the form fields and their current values to the AI so it understan
 
 ```tsx
 useCopilotReadable({
-  description: "The security incident form fields and their current values",
+  description: "The medical intake form fields and their current values",
   value: formState
 });
 ```
@@ -128,24 +128,24 @@ This allows the AI to update the form fields.
 
 ```tsx
 useCopilotAction({
-  name: "fillIncidentReportForm",
-  description: "Fill out the incident report form",
+  name: "fillMedicalIntakeForm",
+  description: "Fill out the medical intake form",
   parameters: [
     {
       name: "fullName",
       type: "string",
       required: true,
-      description: "The full name of the person reporting the incident"
+      description: "The full name of the patient"
     },
     // other parameters ...
   ],
   handler: async (action) => {
     form.setValue("name", action.fullName);
-    form.setValue("email", action.email);
-    form.setValue("description", action.incidentDescription);
-    form.setValue("date", new Date(action.date));
-    form.setValue("impactLevel", action.incidentLevel);
-    form.setValue("incidentType", action.incidentType);
+    form.setValue("dateOfBirth", new Date(action.dateOfBirth));
+    form.setValue("phone", action.phone);
+    form.setValue("chiefComplaint", action.chiefComplaint);
+    form.setValue("symptoms", action.symptoms);
+    form.setValue("painLevel", action.painLevel);
   },
 });
 ```

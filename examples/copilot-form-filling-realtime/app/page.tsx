@@ -1,7 +1,7 @@
 "use client";
 
 import { CopilotPopup } from "@copilotkit/react-ui";
-import { IncidentReportForm } from "@/components/IncidentReportForm";
+import { MedicalIntakeForm } from "@/components/IncidentReportForm";
 import { prompt } from "@/lib/prompt";
 import { useCopilotReadable } from "@copilotkit/react-core";
 import { retrieveUserInfo } from "@/lib/user-info";
@@ -18,20 +18,20 @@ export default function Home() {
         instructions={prompt}
         defaultOpen
         labels={{
-          title: "✨ Incident Report Assistant",
+          title: "🏥 Medical Intake Assistant",
           initial: [
-            "I'm an AI assistant built for guiding you through filing incident reports. How can I help?",
+            "I'm an AI assistant built for helping you complete your medical intake form. How can I help?",
           ],
         }}
       />
       <div className="max-w-5xl mx-auto">
         <header className="mb-12 text-center">
-          <h1 className="text-3xl font-bold mb-2">Security Incident Report</h1>
-          <p className="text-muted-foreground">Please fill out the form below to report an incident</p>
+          <h1 className="text-3xl font-bold mb-2">Medical Intake Form</h1>
+          <p className="text-muted-foreground">Please fill out the form below for your medical appointment</p>
         </header>
         
         <main>
-          <IncidentReportForm />
+          <MedicalIntakeForm />
         </main>
         
         <footer className="mt-16 text-center text-sm text-muted-foreground">

@@ -37,148 +37,181 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
   }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
+  dateOfBirth: z.date({
+    required_error: "Please select your date of birth.",
   }),
-  incidentType: z.string({
-    required_error: "Please select an incident type.",
+  phone: z.string().min(10, {
+    message: "Please enter a valid phone number.",
   }),
-  date: z.date({
-    required_error: "Please select the date when the incident occurred.",
+  emergencyContact: z.string().min(2, {
+    message: "Emergency contact name must be at least 2 characters.",
   }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters.",
+  emergencyPhone: z.string().min(10, {
+    message: "Please enter a valid emergency contact phone number.",
   }),
-  impactLevel: z.string({
-    required_error: "Please select an impact level.",
+  chiefComplaint: z.string({
+    required_error: "Please select your chief complaint.",
   }),
-  suggestedActions: z.string().min(10, {
-    message: "Suggested actions must be at least 10 characters.",
+  symptoms: z.string().min(10, {
+    message: "Please describe your symptoms in detail (at least 10 characters).",
   }),
+  painLevel: z.string({
+    required_error: "Please select your pain level.",
+  }),
+  medicalHistory: z.string().min(10, {
+    message: "Please provide relevant medical history (at least 10 characters).",
+  }),
+  currentMedications: z.string().optional(),
+  allergies: z.string().optional(),
 });
 
-export function IncidentReportForm() {
+export function MedicalIntakeForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      email: "",
-      description: "",
-      suggestedActions: "",
-      incidentType: "",
-      impactLevel: "",
+      dateOfBirth: undefined,
+      phone: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+      chiefComplaint: "",
+      symptoms: "",
+      painLevel: "",
+      medicalHistory: "",
+      currentMedications: "",
+      allergies: "",
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
-    alert("Incident report submitted successfully!");
+    alert("Medical intake form submitted successfully!");
     form.reset({
       name: "",
-      email: "",
-      description: "",
-      suggestedActions: "",
-      incidentType: "",
-      impactLevel: "",
-      date: undefined,
+      dateOfBirth: undefined,
+      phone: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+      chiefComplaint: "",
+      symptoms: "",
+      painLevel: "",
+      medicalHistory: "",
+      currentMedications: "",
+      allergies: "",
     });
   }
 
   useCopilotReadable({
-    description: "The security incident report form fields and their current values",
+    description: "The medical intake form fields and their current values",
     value: form,
   }, [form]);
 
   // Action for showing confirmation UI through voice
   useCopilotAction({
-    name: "confirmIncidentReport",
-    description: "Show confirmation dialog for the incident report before filing",
+    name: "confirmMedicalIntake",
+    description: "Show confirmation dialog for the medical intake form before submission",
     parameters: [
       {
         name: "summary",
         type: "string",
         required: true,
-        description: "Summary of the incident report to confirm"
+        description: "Summary of the medical intake form to confirm"
       }
     ],
     render: ({ args }) => {
       return (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <h3 className="font-semibold text-blue-900 mb-2">📋 Confirming Incident Report</h3>
-          <p className="text-blue-800">{args.summary}</p>
-          <p className="text-sm text-blue-600 mt-2">The form has been filled. Please review and submit.</p>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <h3 className="font-semibold text-green-900 mb-2">🏥 Confirming Medical Intake</h3>
+          <p className="text-green-800">{args.summary}</p>
+          <p className="text-sm text-green-600 mt-2">The form has been filled. Please review and submit.</p>
         </div>
       );
     },
   });
 
   useCopilotAction({
-    name: "fillIncidentReportForm",
-    description: "Fill out the incident report form",
+    name: "fillMedicalIntakeForm",
+    description: "Fill out the medical intake form",
     parameters: [
       {
         "name": "fullName",
         "type": "string",
         "required": true,
-        "description": "The full name of the person reporting the incident"
+        "description": "The full name of the patient"
       },
       {
-        "name": "email",
+        "name": "dateOfBirth",
         "type": "string",
         "required": true,
-        "description": "The email address of the person reporting the incident"
+        "description": "The patient's date of birth"
       },
       {
-        "name": "description",
+        "name": "phone",
         "type": "string",
         "required": true,
-        "description": "The description of the incident"
+        "description": "The patient's phone number"
       },
       {
-        "name": "date",
+        "name": "emergencyContact",
         "type": "string",
         "required": true,
-        "description": "The date of the incident"
+        "description": "The name of the emergency contact person"
       },
       {
-        "name": "impactLevel",
+        "name": "emergencyPhone",
         "type": "string",
         "required": true,
-        "description": "The impact level of the incident"
+        "description": "The emergency contact's phone number"
       },
       {
-        "name": "incidentType",
+        "name": "chiefComplaint",
         "type": "string",
         "required": true,
-        "description": "The type of incident, must be one of the following: phishing, malware, data_breach, unauthorized_access, ddos, other"
+        "description": "The primary reason for the visit, must be one of: chest_pain, headache, fever, abdominal_pain, shortness_of_breath, dizziness, nausea, fatigue, other"
       },
       {
-        "name": "incidentLevel",
+        "name": "symptoms",
         "type": "string",
         "required": true,
-        "description": "The severity of the incident, must be one of the following: low, medium, high, critical"
+        "description": "Detailed description of symptoms, be as specific as possible. At least 30 words."
+      },
+      {
+        "name": "painLevel",
+        "type": "string",
+        "required": true,
+        "description": "The pain level on a scale of 1-10, must be one of: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
       },
       { 
-        "name": "incidentDescription",
+        "name": "medicalHistory",
         "type": "string",
         "required": true,
-        "description": "The description of the incident, be as detailed as possible. At least 30 words."
+        "description": "Relevant medical history including past conditions, surgeries, and chronic illnesses."
       },
       { 
-        "name": "suggestedActions",
+        "name": "currentMedications",
         "type": "string",
-        "required": true,
-        "description": "The suggested actions to take based on the incident, be as detailed as possible in a bulleted list."
+        "required": false,
+        "description": "Current medications the patient is taking, including dosages if known."
+      },
+      { 
+        "name": "allergies",
+        "type": "string",
+        "required": false,
+        "description": "Known allergies to medications, foods, or other substances."
       },
     ],
     handler: async (action) => {
       form.setValue("name", action.fullName);
-      form.setValue("email", action.email);
-      form.setValue("description", action.incidentDescription);
-      form.setValue("date", new Date(action.date));
-      form.setValue("impactLevel", action.incidentLevel);
-      form.setValue("incidentType", action.incidentType);
-      form.setValue("suggestedActions", action.suggestedActions);
+      form.setValue("dateOfBirth", new Date(action.dateOfBirth));
+      form.setValue("phone", action.phone);
+      form.setValue("emergencyContact", action.emergencyContact);
+      form.setValue("emergencyPhone", action.emergencyPhone);
+      form.setValue("chiefComplaint", action.chiefComplaint);
+      form.setValue("symptoms", action.symptoms);
+      form.setValue("painLevel", action.painLevel);
+      form.setValue("medicalHistory", action.medicalHistory);
+      form.setValue("currentMedications", action.currentMedications || "");
+      form.setValue("allergies", action.allergies || "");
     },
   });
 
@@ -187,17 +220,21 @@ export function IncidentReportForm() {
     onFillForm: (args) => {
       // Fill the form with the provided data
       form.setValue("name", args.fullName || "");
-      form.setValue("email", args.email || "");
-      form.setValue("description", args.incidentDescription || "");
-      form.setValue("impactLevel", args.incidentLevel || "low");
-      form.setValue("incidentType", args.incidentType || "other");
-      form.setValue("suggestedActions", args.suggestedActions || "");
+      form.setValue("phone", args.phone || "");
+      form.setValue("emergencyContact", args.emergencyContact || "");
+      form.setValue("emergencyPhone", args.emergencyPhone || "");
+      form.setValue("chiefComplaint", args.chiefComplaint || "other");
+      form.setValue("symptoms", args.symptoms || "");
+      form.setValue("painLevel", args.painLevel || "1");
+      form.setValue("medicalHistory", args.medicalHistory || "");
+      form.setValue("currentMedications", args.currentMedications || "");
+      form.setValue("allergies", args.allergies || "");
       
-      // Parse and set date if provided
-      if (args.date) {
-        const parsedDate = new Date(args.date);
+      // Parse and set date of birth if provided
+      if (args.dateOfBirth) {
+        const parsedDate = new Date(args.dateOfBirth);
         if (!isNaN(parsedDate.getTime())) {
-          form.setValue("date", parsedDate);
+          form.setValue("dateOfBirth", parsedDate);
         }
       }
     }
@@ -211,9 +248,9 @@ export function IncidentReportForm() {
       />
       <Card>
       <CardHeader>
-        <CardTitle>Cyber Security Incident Report</CardTitle>
+        <CardTitle>Medical Intake Form</CardTitle>
         <CardDescription>
-          Report a security incident to our security operations team. We will respond within 24 hours.
+          Please provide your medical information for our healthcare team. All information is confidential and secure.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -235,51 +272,10 @@ export function IncidentReportForm() {
               />
               <FormField
                 control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="john.doe@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="incidentType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Incident Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select incident type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="phishing">Phishing Attack</SelectItem>
-                        <SelectItem value="malware">Malware</SelectItem>
-                        <SelectItem value="data_breach">Data Breach</SelectItem>
-                        <SelectItem value="unauthorized_access">Unauthorized Access</SelectItem>
-                        <SelectItem value="ddos">DDoS Attack</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="date"
+                name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Date of Incident</FormLabel>
+                    <FormLabel>Date of Birth</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -293,7 +289,7 @@ export function IncidentReportForm() {
                             {field.value ? (
                               format(field.value, "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Pick your date of birth</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -317,39 +313,118 @@ export function IncidentReportForm() {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="impactLevel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Impact Level</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select impact level" />
-                      </SelectTrigger>
+                      <Input placeholder="(555) 123-4567" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="critical">Critical - Severe business impact</SelectItem>
-                      <SelectItem value="high">High - Significant business impact</SelectItem>
-                      <SelectItem value="medium">Medium - Limited business impact</SelectItem>
-                      <SelectItem value="low">Low - Minimal business impact</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="emergencyContact"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Emergency Contact Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Jane Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="emergencyPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Emergency Contact Phone</FormLabel>
+                  <FormControl>
+                    <Input placeholder="(555) 987-6543" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="chiefComplaint"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Chief Complaint</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your main concern" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="chest_pain">Chest Pain</SelectItem>
+                        <SelectItem value="headache">Headache</SelectItem>
+                        <SelectItem value="fever">Fever</SelectItem>
+                        <SelectItem value="abdominal_pain">Abdominal Pain</SelectItem>
+                        <SelectItem value="shortness_of_breath">Shortness of Breath</SelectItem>
+                        <SelectItem value="dizziness">Dizziness</SelectItem>
+                        <SelectItem value="nausea">Nausea</SelectItem>
+                        <SelectItem value="fatigue">Fatigue</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="painLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pain Level (1-10)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pain level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="1">1 - No pain</SelectItem>
+                        <SelectItem value="2">2 - Very mild</SelectItem>
+                        <SelectItem value="3">3 - Mild</SelectItem>
+                        <SelectItem value="4">4 - Moderate</SelectItem>
+                        <SelectItem value="5">5 - Moderate</SelectItem>
+                        <SelectItem value="6">6 - Moderate to severe</SelectItem>
+                        <SelectItem value="7">7 - Severe</SelectItem>
+                        <SelectItem value="8">8 - Very severe</SelectItem>
+                        <SelectItem value="9">9 - Intense</SelectItem>
+                        <SelectItem value="10">10 - Unbearable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="description"
+              name="symptoms"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Incident Description</FormLabel>
+                  <FormLabel>Symptoms Description</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Please provide details about the incident, including what happened, how it was discovered, and any other relevant information."
+                      placeholder="Please describe your symptoms in detail, including when they started, how they feel, and any patterns you've noticed."
                       className="min-h-32"
                       {...field}
                     />
@@ -361,13 +436,13 @@ export function IncidentReportForm() {
 
             <FormField
               control={form.control}
-              name="suggestedActions"
+              name="medicalHistory"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Suggested Actions</FormLabel>
+                  <FormLabel>Medical History</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Please provide suggested actions to take based on the incident description."
+                      placeholder="Please provide relevant medical history including past conditions, surgeries, hospitalizations, and chronic illnesses."
                       className="min-h-32"
                       {...field}
                     />
@@ -377,7 +452,43 @@ export function IncidentReportForm() {
               )}
             />
 
-            <Button type="submit" className="w-full">Submit Incident Report</Button>
+            <FormField
+              control={form.control}
+              name="currentMedications"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current Medications (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="List any medications you are currently taking, including dosages if known."
+                      className="min-h-24"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="allergies"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Allergies (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="List any known allergies to medications, foods, or other substances."
+                      className="min-h-24"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full">Submit Medical Intake Form</Button>
           </form>
         </Form>
       </CardContent>
