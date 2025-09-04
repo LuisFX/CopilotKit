@@ -489,6 +489,7 @@ export function CopilotKitInternal(cpkProps: CopilotKitProps) {
         onError: props.onError,
         bannerError,
         setBannerError,
+        realtimeMode: props.realtimeMode || false,
       }}
     >
       <MessagesTapProvider>

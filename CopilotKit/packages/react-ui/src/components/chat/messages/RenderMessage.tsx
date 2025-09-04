@@ -2,6 +2,7 @@ import { RenderMessageProps } from "../props";
 import { UserMessage as DefaultUserMessage } from "./UserMessage";
 import { AssistantMessage as DefaultAssistantMessage } from "./AssistantMessage";
 import { ImageRenderer as DefaultImageRenderer } from "./ImageRenderer";
+import { RenderRealtimeActionMessage, RenderVoiceTranscriptMessage } from "./RenderRealtimeActionMessage";
 
 export function RenderMessage({
   UserMessage = DefaultUserMessage,
@@ -49,6 +50,21 @@ export function RenderMessage({
           onThumbsDown={onThumbsDown}
           markdownTagRenderers={markdownTagRenderers}
           ImageRenderer={ImageRenderer}
+        />
+      );
+    case "realtime_action":
+      return (
+        <RenderRealtimeActionMessage
+          key={index}
+          message={message as any}
+          inProgress={inProgress}
+        />
+      );
+    case "voice_transcript":
+      return (
+        <RenderVoiceTranscriptMessage
+          key={index}
+          message={message}
         />
       );
   }

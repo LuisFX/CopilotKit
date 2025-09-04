@@ -7,4 +7,5 @@ export {
   loadMessagesFromJsonRepresentation,
 } from "./conversion";
 export * from "./types";
+export * from "./RealtimeActionExecutionMessage";
 export type { GraphQLError } from "graphql";

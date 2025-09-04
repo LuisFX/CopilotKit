@@ -20,7 +20,9 @@ type MessageType =
   | "ActionExecutionMessage"
   | "ResultMessage"
   | "AgentStateMessage"
-  | "ImageMessage";
+  | "ImageMessage"
+  | "RealtimeActionExecutionMessage"
+  | "VoiceTranscriptMessage";
 
 export class Message {
   type: MessageType;
