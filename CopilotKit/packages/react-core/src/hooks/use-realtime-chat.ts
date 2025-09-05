@@ -99,6 +99,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   const messageCreationOrder = useRef<string[]>([]);
   // Track user items waiting for transcripts
   const pendingUserTranscripts = useRef<Set<string>>(new Set());
+  // Buffer assistant responses until user transcript arrives
+  const pendingAssistantMessages = useRef<Message[]>([]);
   
   // Audio level monitoring
   useEffect(() => {
@@ -142,13 +144,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         type === "response.audio_transcript.done") {
       const itemId = event.item_id || event.item?.id;
       const role = event.item?.role || (type.includes("response") ? "assistant" : "user");
-      console.log(`\n🔍 [MESSAGE FLOW] ${timestamp}`);
-      console.log(`   Type: ${type}`);
-      console.log(`   ID: ${itemId}`);
-      console.log(`   Role: ${role}`);
-      console.log(`   Already processed: ${processedItemIds.current.has(itemId || '')}`);
-      console.log(`   Total processed: ${processedItemIds.current.size}`);
-      console.log(`   Total sent messages: ${sentMessages.current.size}`);
     }
     
     switch (type) {
@@ -192,7 +187,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
               processedItemIds.current.delete(item.id);
               // Mark this user item as pending transcript
               pendingUserTranscripts.current.add(item.id);
-              console.log(`[RealtimeChat] User item ${item.id} pending transcript`);
               break;
             }
           }
@@ -204,8 +198,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           
           // Send message to CopilotKit if we have content
           if (content && sendCopilotMessage) {
-            const timestamp = new Date().toLocaleTimeString();
-            console.log(`[${timestamp}] SEND TO UI: ${item.id} | ${role}: "${content.substring(0, 50)}..."`);
             sendCopilotMessage({
               id: item.id,
               role,
@@ -225,17 +217,12 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           if (!processedItemIds.current.has(transcriptKey)) {
             processedItemIds.current.add(transcriptKey);
             
-            const timestamp = new Date().toLocaleTimeString();
-            console.log(`[${timestamp}] USER TRANSCRIPT: ${itemId} | "${transcript.substring(0, 50)}..."`);
-            
             if (sendCopilotMessage) {
               // Check for duplicate content
               const messageKey = `user:${transcript}`;
               const existingId = sentMessages.current.get(messageKey);
               
-              if (existingId && existingId !== itemId) {
-                console.log(`[${timestamp}] USER DUPLICATE BLOCKED: ${itemId} (already sent as ${existingId})`);
-              } else {
+              if (!(existingId && existingId !== itemId)) {
                 sentMessages.current.set(messageKey, itemId);
                 // Send as regular message with voice metadata
                 // IMPORTANT: skipInference must be TRUE because OpenAI Realtime handles the response
@@ -254,19 +241,30 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                     creationIndex: messageCreationOrder.current.indexOf(itemId)
                   }
                 } as Message;
-                console.log("[RealtimeChat] Sending user message to UI:", userMessage);
                 try {
                   // Always use sendCopilotMessage to ensure proper message format
                   // The reordering approach was breaking message type compatibility
                   const wasPending = pendingUserTranscripts.current.has(itemId);
                   if (wasPending) {
                     pendingUserTranscripts.current.delete(itemId);
-                    console.log(`[RealtimeChat] Processing late user transcript for ${itemId} - message ordering may be affected`);
                   }
                   
                   // Always append through the proper API
                   sendCopilotMessage(userMessage, { followUp: false });
-                  console.log("[RealtimeChat] User message sent successfully");
+                  
+                  // Now flush any pending assistant messages that were waiting for this user transcript
+                  if (pendingAssistantMessages.current.length > 0) {
+                    // Capture the messages to flush before clearing
+                    const messagesToFlush = [...pendingAssistantMessages.current];
+                    pendingAssistantMessages.current = [];
+                    
+                    // Use setTimeout to ensure the user message state update completes first
+                    setTimeout(() => {
+                      for (const assistantMsg of messagesToFlush) {
+                        sendCopilotMessage(assistantMsg, { followUp: false });
+                      }
+                    }, 100);
+                  }
                 } catch (error) {
                   console.error("[RealtimeChat] Error sending user message:", error);
                 }
@@ -284,9 +282,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         if (transcript && itemId && !processedItemIds.current.has(`${itemId}_transcript`)) {
           processedItemIds.current.add(`${itemId}_transcript`);
           
-          const timestamp = new Date().toLocaleTimeString();
-          console.log(`[${timestamp}] ASSISTANT TRANSCRIPT: ${itemId} | "${transcript.substring(0, 50)}..."`);
-          
           if (sendCopilotMessage) {
             // Send as regular message with voice metadata
             const assistantMessage: Message = {
@@ -302,13 +297,17 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                 skipInference: true // Assistant responses don't trigger inference
               }
             } as Message;
-            console.log("[RealtimeChat] Sending assistant message to UI:", assistantMessage);
-            try {
-              // Pass followUp: false since OpenAI Realtime already handled the response
-              sendCopilotMessage(assistantMessage, { followUp: false });
-              console.log("[RealtimeChat] Message sent successfully");
-            } catch (error) {
-              console.error("[RealtimeChat] Error sending message:", error);
+            
+            // Check if we're waiting for any user transcripts
+            if (pendingUserTranscripts.current.size > 0) {
+              pendingAssistantMessages.current.push(assistantMessage);
+            } else {
+              try {
+                // Pass followUp: false since OpenAI Realtime already handled the response
+                sendCopilotMessage(assistantMessage, { followUp: false });
+              } catch (error) {
+                console.error("[RealtimeChat] Error sending message:", error);
+              }
             }
           } else {
             console.warn("[RealtimeChat] sendCopilotMessage is undefined - cannot send assistant transcript to UI");
@@ -329,7 +328,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         }
         
         if (config.debug) {
-          console.log("[RealtimeChat] Tool call:", toolName, args);
         }
         
         // Handle voice-triggered actions with GenerativeUI support
@@ -343,11 +341,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
               // Pass metadata with the callId for tracking
               const argsWithMetadata = { ...args, __metadata: { callId } };
               result = await executeAction(toolName, argsWithMetadata, 'voice');
-              console.log(`[RealtimeChat] Voice action executed for ${toolName}`);
             } catch (actionError) {
               // Action might not exist in CopilotKit, try custom handler
-              console.log(`[RealtimeChat] CopilotKit action not found for ${toolName}, trying custom handler...`);
-              
               // Fallback to custom onToolCall if provided
               if (config.onToolCall) {
                 result = await config.onToolCall(toolName, args);
@@ -369,7 +364,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
               dcRef.current.send(JSON.stringify(outputEvent));
               
               if (config.debug) {
-                console.log("[RealtimeChat] Sent tool result:", outputEvent);
               }
             }
           } catch (error) {
@@ -438,7 +432,6 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
       // Log other events in debug mode
       default: {
         if (config.debug) {
-          console.log(`[RealtimeChat] Unhandled event ${type}:`, event);
         }
       }
     }

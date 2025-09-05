@@ -5,37 +5,6 @@ import { AssistantMessage as DefaultAssistantMessage } from "./AssistantMessage"
 import { ImageRenderer as DefaultImageRenderer } from "./ImageRenderer";
 import { useCopilotContext } from "@copilotkit/react-core";
 
-// Message source indicator component for composition
-function MessageSourceIndicator({ metadata }: { metadata?: any }) {
-  const source = metadata?.source || 'text';
-  
-  return (
-    <div className="copilotKitMessageSourceIndicator" data-source={source}>
-      <span className="copilotKitSourceIcon">
-        {source === 'voice' ? '🎤' : '⌨️'}
-      </span>
-      <span className="copilotKitSourceLabel">
-        {source === 'voice' ? 'Voice' : 'Text'}
-      </span>
-      {source === 'voice' && metadata.voiceData?.confidence && (
-        <span className="copilotKitSourceConfidence">
-          {Math.round(metadata.voiceData.confidence * 100)}%
-        </span>
-      )}
-    </div>
-  );
-}
-
-// Wrapper component for messages with source indicator
-function MessageWithSourceIndicator({ children, metadata }: { children: React.ReactNode; metadata?: any }) {
-  return (
-    <div className="copilotKitMessageWrapper">
-      <MessageSourceIndicator metadata={metadata} />
-      {children}
-    </div>
-  );
-}
-
 export function RenderMessage({
   UserMessage = DefaultUserMessage,
   AssistantMessage = DefaultAssistantMessage,
@@ -56,10 +25,10 @@ export function RenderMessage({
 
   const { actions } = useCopilotContext();
 
-  // Handle regular message types with optional voice metadata
+  // Handle regular message types
   switch (message.role) {
     case "user":
-      const userMessage = (
+      return (
         <UserMessage
           key={index}
           rawData={message}
@@ -67,12 +36,6 @@ export function RenderMessage({
           message={message}
           ImageRenderer={ImageRenderer}
         />
-      );
-      // Always show source indicator
-      return (
-        <MessageWithSourceIndicator metadata={(message as any).metadata}>
-          {userMessage}
-        </MessageWithSourceIndicator>
       );
 
     case "assistant":
@@ -105,16 +68,12 @@ export function RenderMessage({
             </div>
           );
           
-          return (
-            <MessageWithSourceIndicator metadata={(actionMessage as any).metadata}>
-              {actionElement}
-            </MessageWithSourceIndicator>
-          );
+          return actionElement;
         }
       }
       
       // Regular assistant message
-      const assistantMessage = (
+      return (
         <AssistantMessage
           key={index}
           data-message-role="assistant"
@@ -131,12 +90,6 @@ export function RenderMessage({
           markdownTagRenderers={markdownTagRenderers}
           ImageRenderer={ImageRenderer}
         />
-      );
-      
-      return (
-        <MessageWithSourceIndicator metadata={(message as any).metadata}>
-          {assistantMessage}
-        </MessageWithSourceIndicator>
       );
       
     default:

@@ -36,7 +36,6 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
     args: Record<string, any>,
     source: 'voice' | 'text' | 'api' = 'text'
   ) => {
-    console.log(`[RealtimeActionHandler] Executing action: ${actionName} from ${source}`, args);
     
     // Find the specific action
     const action = Object.values(actions).find((a: any) => a.name === actionName);
@@ -46,7 +45,6 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
       throw new Error(`Action not found: ${actionName}`);
     }
     
-    console.log(`[RealtimeActionHandler] Found action with render:`, !!action.render);
     
     // Extract metadata if present
     const { __metadata, ...cleanArgs } = args;
@@ -72,18 +70,15 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
       // This is more reliable than complex reordering which breaks message types
       setTimeout(() => {
         setMessages((prevMessages) => [...prevMessages, actionMessage]);
-        console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata (delayed for ordering)`);
       }, 500); // 500ms should handle most transcript delays
     } else {
       setMessages((prevMessages) => [...prevMessages, actionMessage]);
-      console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata`);
     }
     
     // Execute the action handler if it exists
     if (action.handler) {
       try {
         const result = await action.handler(cleanArgs);
-        console.log(`[RealtimeActionHandler] Action handler executed successfully:`, result);
         return result;
       } catch (error) {
         console.error(`[RealtimeActionHandler] Action handler failed:`, error);
