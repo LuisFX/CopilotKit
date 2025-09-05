@@ -97,6 +97,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   const sentMessages = useRef<Map<string, string>>(new Map()); // role:content -> itemId
   // Track order of created items to fix race conditions
   const messageCreationOrder = useRef<string[]>([]);
+  // Track user items waiting for transcripts
+  const pendingUserTranscripts = useRef<Set<string>>(new Set());
   
   // Audio level monitoring
   useEffect(() => {
@@ -188,6 +190,9 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
             // Skip user messages without content - wait for transcription event
             if (role === "user" && !content) {
               processedItemIds.current.delete(item.id);
+              // Mark this user item as pending transcript
+              pendingUserTranscripts.current.add(item.id);
+              console.log(`[RealtimeChat] User item ${item.id} pending transcript`);
               break;
             }
           }
@@ -251,7 +256,15 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                 } as Message;
                 console.log("[RealtimeChat] Sending user message to UI:", userMessage);
                 try {
-                  // CRITICAL: Pass followUp: false to prevent CopilotKit from generating AI response
+                  // Always use sendCopilotMessage to ensure proper message format
+                  // The reordering approach was breaking message type compatibility
+                  const wasPending = pendingUserTranscripts.current.has(itemId);
+                  if (wasPending) {
+                    pendingUserTranscripts.current.delete(itemId);
+                    console.log(`[RealtimeChat] Processing late user transcript for ${itemId} - message ordering may be affected`);
+                  }
+                  
+                  // Always append through the proper API
                   sendCopilotMessage(userMessage, { followUp: false });
                   console.log("[RealtimeChat] User message sent successfully");
                 } catch (error) {
@@ -310,6 +323,11 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         const callId = event.call_id;
         const args = event.arguments ? JSON.parse(event.arguments) : {};
         
+        // Track the tool response in creation order
+        if (callId && !messageCreationOrder.current.includes(callId)) {
+          messageCreationOrder.current.push(callId);
+        }
+        
         if (config.debug) {
           console.log("[RealtimeChat] Tool call:", toolName, args);
         }
@@ -322,7 +340,9 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
             // Try to execute through CopilotKit's action system first
             // This will handle GenerativeUI rendering automatically
             try {
-              result = await executeAction(toolName, args, 'voice');
+              // Pass metadata with the callId for tracking
+              const argsWithMetadata = { ...args, __metadata: { callId } };
+              result = await executeAction(toolName, argsWithMetadata, 'voice');
               console.log(`[RealtimeChat] Voice action executed for ${toolName}`);
             } catch (actionError) {
               // Action might not exist in CopilotKit, try custom handler

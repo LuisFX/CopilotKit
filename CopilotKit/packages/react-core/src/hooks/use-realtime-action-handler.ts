@@ -48,11 +48,15 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
     
     console.log(`[RealtimeActionHandler] Found action with render:`, !!action.render);
     
+    // Extract metadata if present
+    const { __metadata, ...cleanArgs } = args;
+    const callId = __metadata?.callId;
+    
     // Create ActionExecutionMessage with metadata for source
     const actionMessage = new ActionExecutionMessage({
-      id: `${source}-action-${Date.now()}`,
+      id: callId || `${source}-action-${Date.now()}`,
       name: actionName,
-      arguments: args,
+      arguments: cleanArgs,
       parentMessageId: messages.length > 0 ? messages[messages.length - 1].id : null,
       metadata: {
         source,
@@ -63,12 +67,13 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
     
     // Add the action message to trigger rendering
     // Use function form to ensure we get the latest messages
-    // For voice actions, add a small delay to ensure user transcript arrives first
     if (source === 'voice') {
+      // For voice actions, add a longer delay to ensure transcript arrives first
+      // This is more reliable than complex reordering which breaks message types
       setTimeout(() => {
         setMessages((prevMessages) => [...prevMessages, actionMessage]);
-        console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata (delayed)`);
-      }, 100); // Small delay to let transcript arrive first
+        console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata (delayed for ordering)`);
+      }, 500); // 500ms should handle most transcript delays
     } else {
       setMessages((prevMessages) => [...prevMessages, actionMessage]);
       console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata`);
@@ -77,7 +82,7 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
     // Execute the action handler if it exists
     if (action.handler) {
       try {
-        const result = await action.handler(args);
+        const result = await action.handler(cleanArgs);
         console.log(`[RealtimeActionHandler] Action handler executed successfully:`, result);
         return result;
       } catch (error) {
