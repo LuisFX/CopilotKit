@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCopilotChat } from "./use-copilot-chat_internal";
+import { useCopilotContext } from "../context/copilot-context";
 import { useRealtimeActionHandler } from "./use-realtime-action-handler";
 import type { Message } from "@copilotkit/shared";
 
@@ -76,11 +77,15 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   const chatResult = useCopilotChat();
   const sendCopilotMessage = chatResult?.sendMessage;
   
+  // Get chatInstructions from CopilotContext for proper system prompt
+  const { chatInstructions } = useCopilotContext();
+  
   // Debug logging to understand the issue
   // console.log("[RealtimeChat] Hook initialization:", {
   //   chatResultDefined: !!chatResult,
   //   sendMessageDefined: !!sendCopilotMessage,
   //   chatResultKeys: chatResult ? Object.keys(chatResult) : [],
+  //   chatInstructions: chatInstructions?.substring(0, 100),
   // });
   
   const { executeAction } = useRealtimeActionHandler();
@@ -546,7 +551,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           session: {
             modalities: ["text", "audio"],
             voice: config.voice || "alloy",
-            instructions: "You are a helpful AI assistant for filing incident reports. When users provide incident details (name, email, incident type, severity, etc.), use the 'fillIncidentReportForm' tool to populate the form. Only use 'confirmIncidentReport' to show a summary AFTER filling the form. IMPORTANT: Always respond in English only.",
+            // Use the actual system prompt from CopilotChat/CopilotKit context
+            instructions: chatInstructions || "You are a helpful AI assistant. Please help the user with their request.",
             input_audio_transcription: {
               model: "whisper-1",
               language: "en"  // Force English transcription
@@ -560,6 +566,18 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
             tools: registeredTools.current,
           },
         };
+        
+        // IMPORTANT DEBUG: Log the actual instructions being sent to OpenAI Realtime
+        console.log("[RealtimeChat] System instructions being sent to OpenAI Realtime:", {
+          instructionsLength: sessionConfig.session.instructions.length,
+          instructionsPreview: sessionConfig.session.instructions.substring(0, 200) + "...",
+          hasPatientContext: sessionConfig.session.instructions.includes("Patient") || sessionConfig.session.instructions.includes("patient"),
+          hasMedicalContext: sessionConfig.session.instructions.includes("medical") || sessionConfig.session.instructions.includes("clinical"),
+        });
+        
+        if (config.debug) {
+          console.log("[RealtimeChat] Full session config:", sessionConfig);
+        }
         
         dc.send(JSON.stringify(sessionConfig));
       };

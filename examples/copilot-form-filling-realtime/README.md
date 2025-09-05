@@ -100,6 +100,14 @@ export default function RootLayout({children}: Readonly<{children: React.ReactNo
 }
 ```
 
+### Generative UI
+This example demonstrates CopilotKit Generative UI for both simple confirmations and interactive, multi-step flows:
+
+- `confirmMedicalIntake` uses `render` to display a visual confirmation banner in the chat.
+- `scheduleAppointment` uses `renderAndWaitForResponse` to collect user edits and confirm via `respond`.
+
+See `GENERATIVE-UI.md` for a thorough guide and patterns.
+
 ### CopilotReadable
 This provides the form fields and their current values to the AI so it understands the current state of the form and session.
 
