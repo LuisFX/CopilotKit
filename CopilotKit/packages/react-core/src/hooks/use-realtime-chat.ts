@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCopilotChat } from "./use-copilot-chat_internal";
 import { useRealtimeActionHandler } from "./use-realtime-action-handler";
+import type { Message } from "@copilotkit/shared";
 
 export interface RealtimeConfig {
   /** Endpoint to fetch ephemeral token for OpenAI Realtime */
@@ -67,6 +68,14 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   
   const chatResult = useCopilotChat();
   const sendCopilotMessage = chatResult?.sendMessage;
+  
+  // Debug logging to understand the issue
+  // console.log("[RealtimeChat] Hook initialization:", {
+  //   chatResultDefined: !!chatResult,
+  //   sendMessageDefined: !!sendCopilotMessage,
+  //   chatResultKeys: chatResult ? Object.keys(chatResult) : [],
+  // });
+  
   const { executeAction } = useRealtimeActionHandler();
   
   // WebRTC references
@@ -86,6 +95,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   const registeredTools = useRef<RealtimeToolDefinition[]>([]);
   // Track message contents to prevent duplicates with different IDs
   const sentMessages = useRef<Map<string, string>>(new Map()); // role:content -> itemId
+  // Track order of created items to fix race conditions
+  const messageCreationOrder = useRef<string[]>([]);
   
   // Audio level monitoring
   useEffect(() => {
@@ -123,11 +134,19 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
     const { type } = event;
     const timestamp = new Date().toLocaleTimeString();
     
-    // Focus on message order logging
-    if (type.includes("conversation.item") || type.includes("response.audio_transcript")) {
+    // CRITICAL: Log message flow to debug history resetting
+    if (type === "conversation.item.created" || 
+        type === "conversation.item.input_audio_transcription.completed" ||
+        type === "response.audio_transcript.done") {
       const itemId = event.item_id || event.item?.id;
-      const role = event.item?.role;
-      console.log(`[${timestamp}] ${type} | id: ${itemId} | role: ${role}`);
+      const role = event.item?.role || (type.includes("response") ? "assistant" : "user");
+      console.log(`\n🔍 [MESSAGE FLOW] ${timestamp}`);
+      console.log(`   Type: ${type}`);
+      console.log(`   ID: ${itemId}`);
+      console.log(`   Role: ${role}`);
+      console.log(`   Already processed: ${processedItemIds.current.has(itemId || '')}`);
+      console.log(`   Total processed: ${processedItemIds.current.size}`);
+      console.log(`   Total sent messages: ${sentMessages.current.size}`);
     }
     
     switch (type) {
@@ -140,6 +159,11 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
       case "conversation.item.created": {
         const item = event.item;
         // Minimal logging for clarity
+        
+        // Track creation order for all items
+        if (item?.id && !messageCreationOrder.current.includes(item.id)) {
+          messageCreationOrder.current.push(item.id);
+        }
         
         // Handle different item types
         if (item && !processedItemIds.current.has(item.id)) {
@@ -181,7 +205,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
               id: item.id,
               role,
               content,
-            });
+            } as Message);
           }
         }
         break;
@@ -209,7 +233,8 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
               } else {
                 sentMessages.current.set(messageKey, itemId);
                 // Send as regular message with voice metadata
-                const userMessage = {
+                // IMPORTANT: skipInference must be TRUE because OpenAI Realtime handles the response
+                const userMessage: Message = {
                   id: itemId,
                   role: "user",
                   content: transcript,
@@ -219,10 +244,19 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                       timestamp: Date.now(),
                       transcript: transcript
                     },
-                    skipInference: false // User messages can trigger inference
+                    skipInference: true, // CRITICAL: OpenAI Realtime handles inference, not CopilotKit
+                    // Use creation order to help with message ordering
+                    creationIndex: messageCreationOrder.current.indexOf(itemId)
                   }
-                };
-                sendCopilotMessage(userMessage as any);
+                } as Message;
+                console.log("[RealtimeChat] Sending user message to UI:", userMessage);
+                try {
+                  // CRITICAL: Pass followUp: false to prevent CopilotKit from generating AI response
+                  sendCopilotMessage(userMessage, { followUp: false });
+                  console.log("[RealtimeChat] User message sent successfully");
+                } catch (error) {
+                  console.error("[RealtimeChat] Error sending user message:", error);
+                }
               }
             }
           }
@@ -242,7 +276,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           
           if (sendCopilotMessage) {
             // Send as regular message with voice metadata
-            const assistantMessage = {
+            const assistantMessage: Message = {
               id: itemId,
               role: "assistant",
               content: transcript,
@@ -254,8 +288,17 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                 },
                 skipInference: true // Assistant responses don't trigger inference
               }
-            };
-            sendCopilotMessage(assistantMessage as any);
+            } as Message;
+            console.log("[RealtimeChat] Sending assistant message to UI:", assistantMessage);
+            try {
+              // Pass followUp: false since OpenAI Realtime already handled the response
+              sendCopilotMessage(assistantMessage, { followUp: false });
+              console.log("[RealtimeChat] Message sent successfully");
+            } catch (error) {
+              console.error("[RealtimeChat] Error sending message:", error);
+            }
+          } else {
+            console.warn("[RealtimeChat] sendCopilotMessage is undefined - cannot send assistant transcript to UI");
           }
         }
         break;

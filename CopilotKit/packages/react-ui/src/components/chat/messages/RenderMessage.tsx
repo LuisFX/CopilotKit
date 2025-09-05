@@ -5,16 +5,20 @@ import { AssistantMessage as DefaultAssistantMessage } from "./AssistantMessage"
 import { ImageRenderer as DefaultImageRenderer } from "./ImageRenderer";
 import { useCopilotContext } from "@copilotkit/react-core";
 
-// Voice indicator component for composition
-function VoiceIndicator({ metadata }: { metadata?: any }) {
-  if (!metadata?.source || metadata.source !== 'voice') return null;
+// Message source indicator component for composition
+function MessageSourceIndicator({ metadata }: { metadata?: any }) {
+  const source = metadata?.source || 'text';
   
   return (
-    <div className="copilotKitVoiceIndicator">
-      <span className="copilotKitVoiceIcon">🎙️</span>
-      <span className="copilotKitVoiceLabel">Voice</span>
-      {metadata.voiceData?.confidence && (
-        <span className="copilotKitVoiceConfidence">
+    <div className="copilotKitMessageSourceIndicator" data-source={source}>
+      <span className="copilotKitSourceIcon">
+        {source === 'voice' ? '🎤' : '⌨️'}
+      </span>
+      <span className="copilotKitSourceLabel">
+        {source === 'voice' ? 'Voice' : 'Text'}
+      </span>
+      {source === 'voice' && metadata.voiceData?.confidence && (
+        <span className="copilotKitSourceConfidence">
           {Math.round(metadata.voiceData.confidence * 100)}%
         </span>
       )}
@@ -22,11 +26,11 @@ function VoiceIndicator({ metadata }: { metadata?: any }) {
   );
 }
 
-// Wrapper component for messages with voice metadata
-function MessageWithVoiceIndicator({ children, metadata }: { children: React.ReactNode; metadata?: any }) {
+// Wrapper component for messages with source indicator
+function MessageWithSourceIndicator({ children, metadata }: { children: React.ReactNode; metadata?: any }) {
   return (
     <div className="copilotKitMessageWrapper">
-      <VoiceIndicator metadata={metadata} />
+      <MessageSourceIndicator metadata={metadata} />
       {children}
     </div>
   );
@@ -64,12 +68,12 @@ export function RenderMessage({
           ImageRenderer={ImageRenderer}
         />
       );
-      // Wrap with voice indicator if this is a voice message
-      return (message as any).metadata?.source === 'voice' ? (
-        <MessageWithVoiceIndicator metadata={(message as any).metadata}>
+      // Always show source indicator
+      return (
+        <MessageWithSourceIndicator metadata={(message as any).metadata}>
           {userMessage}
-        </MessageWithVoiceIndicator>
-      ) : userMessage;
+        </MessageWithSourceIndicator>
+      );
 
     case "assistant":
       // Check if this is an action message
@@ -101,11 +105,11 @@ export function RenderMessage({
             </div>
           );
           
-          return (actionMessage as any).metadata?.source === 'voice' ? (
-            <MessageWithVoiceIndicator metadata={(actionMessage as any).metadata}>
+          return (
+            <MessageWithSourceIndicator metadata={(actionMessage as any).metadata}>
               {actionElement}
-            </MessageWithVoiceIndicator>
-          ) : actionElement;
+            </MessageWithSourceIndicator>
+          );
         }
       }
       
@@ -129,11 +133,11 @@ export function RenderMessage({
         />
       );
       
-      return (message as any).metadata?.source === 'voice' ? (
-        <MessageWithVoiceIndicator metadata={(message as any).metadata}>
+      return (
+        <MessageWithSourceIndicator metadata={(message as any).metadata}>
           {assistantMessage}
-        </MessageWithVoiceIndicator>
-      ) : assistantMessage;
+        </MessageWithSourceIndicator>
+      );
       
     default:
       return null;

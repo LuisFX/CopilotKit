@@ -62,8 +62,17 @@ export function useRealtimeActionHandler(): UseRealtimeActionHandlerReturn {
     } as any);
     
     // Add the action message to trigger rendering
-    setMessages([...messages, actionMessage]);
-    console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata`);
+    // Use function form to ensure we get the latest messages
+    // For voice actions, add a small delay to ensure user transcript arrives first
+    if (source === 'voice') {
+      setTimeout(() => {
+        setMessages((prevMessages) => [...prevMessages, actionMessage]);
+        console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata (delayed)`);
+      }, 100); // Small delay to let transcript arrive first
+    } else {
+      setMessages((prevMessages) => [...prevMessages, actionMessage]);
+      console.log(`[RealtimeActionHandler] Added ActionExecutionMessage with ${source} metadata`);
+    }
     
     // Execute the action handler if it exists
     if (action.handler) {

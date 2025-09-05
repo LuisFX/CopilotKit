@@ -937,6 +937,12 @@ export function useChat(options: UseChatOptions): UseChatHelpers {
       // Check if this specific message should skip inference
       const skipInference = (message as any).metadata?.skipInference;
       const followUp = skipInference ? false : (options?.followUp ?? true);
+      
+      // Log inference decision for voice messages
+      if ((message as any).metadata?.source === 'voice') {
+        console.log(`🎯 [INFERENCE CONTROL] Voice message - skipInference: ${skipInference}, followUp: ${followUp}`);
+      }
+      
       if (isLoading) {
         pendingAppendsRef.current.push({ message, followUp });
         return;
@@ -945,6 +951,7 @@ export function useChat(options: UseChatOptions): UseChatHelpers {
       const newMessages = [...messages, message];
       setMessages(newMessages);
       if (followUp) {
+        console.log(`🤖 [TRIGGERING AI] Running chat completion for message`);
         return runChatCompletionAndHandleFunctionCall(newMessages);
       }
     },
