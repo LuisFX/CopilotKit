@@ -43,6 +43,7 @@ export interface RealtimeConfig {
 }
 
 export interface RealtimeToolDefinition {
+  type: "function";  // OpenAI Realtime API requires this
   name: string;
   description: string;
   parameters: {

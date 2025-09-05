@@ -37,6 +37,10 @@ pnpm run build
 echo ""
 echo "Publishing packages to local registry..."
 
+# Generate a single timestamp for all packages (YYYYMMDDHHMM - no seconds)
+TIMESTAMP=$(date +%Y%m%d%H%M)
+echo "Using timestamp: $TIMESTAMP for all packages"
+
 # Define packages in dependency order
 PACKAGES=(
     "packages/shared"
@@ -61,27 +65,32 @@ for package_dir in "${PACKAGES[@]}"; do
         PACKAGE_NAME=$(node -p "require('./package.json').name")
         PACKAGE_VERSION=$(node -p "require('./package.json').version")
         
-        # Add a local suffix to version if not already present
-        if [[ ! "$PACKAGE_VERSION" == *"-local"* ]]; then
-            # Update version with local suffix (without modifying package.json)
-            NEW_VERSION="${PACKAGE_VERSION}-local.$(date +%s)"
-            npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
-        fi
+        # Generate consistent version for all packages
+        BASE_VERSION="${PACKAGE_VERSION%-local.*}"  # Remove any existing local suffix
+        NEW_VERSION="${BASE_VERSION}-local.${TIMESTAMP}"
         
-        # Try to publish (will skip if already published)
+        echo "Publishing as version: $NEW_VERSION"
+        
+        # Create a temporary package.json for publishing
+        # This way we don't modify the actual package.json file
+        cp package.json package.json.backup
+        
+        # Use npm pack with version override to create tarball
+        npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version > /dev/null 2>&1
+        
+        # Try to publish
         if npm publish --registry http://localhost:4873 2>&1 | tee /tmp/npm-publish.log; then
             if grep -q "npm ERR!" /tmp/npm-publish.log; then
-                if grep -q "cannot publish over the previously published versions" /tmp/npm-publish.log; then
-                    echo "Package $PACKAGE_NAME already published with this version, skipping..."
-                else
-                    echo "Error publishing $PACKAGE_NAME"
-                    cat /tmp/npm-publish.log
-                fi
+                echo "Error publishing $PACKAGE_NAME"
+                cat /tmp/npm-publish.log
             else
-                echo "Successfully published $PACKAGE_NAME"
+                echo "Successfully published $PACKAGE_NAME@$NEW_VERSION"
                 PUBLISHED_PACKAGES+=("$PACKAGE_NAME@$NEW_VERSION")
             fi
         fi
+        
+        # Restore original package.json
+        mv package.json.backup package.json
         
         cd ../..
     else
