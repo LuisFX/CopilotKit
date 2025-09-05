@@ -7,6 +7,13 @@
  * - Automatic speech recognition and transcription
  * - Voice synthesis for assistant responses
  * - Full integration with CopilotKit's action system
+ * 
+ * Race Condition Fix (2025-09-05):
+ * - Replaced setTimeout-based delays with Promise-based coordination
+ * - Transcript promises ensure proper message ordering
+ * - Action messages wait for pending transcripts before execution
+ * - Maximum 1s timeout prevents indefinite waiting
+ * - Immediate flushing when transcripts arrive (no 100ms delay)
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -102,6 +109,18 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   // Buffer assistant responses until user transcript arrives
   const pendingAssistantMessages = useRef<Message[]>([]);
   
+  // Promise-based coordination for message ordering
+  const transcriptPromises = useRef<Map<string, {
+    resolve: () => void;
+    promise: Promise<void>;
+  }>>(new Map());
+  
+  // Track pending action messages waiting for user transcripts
+  const pendingActionMessages = useRef<Map<string, {
+    message: any;
+    timestamp: number;
+  }>>(new Map());
+  
   // Audio level monitoring
   useEffect(() => {
     if (!streamRef.current || !isMicActive) {
@@ -187,6 +206,14 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
               processedItemIds.current.delete(item.id);
               // Mark this user item as pending transcript
               pendingUserTranscripts.current.add(item.id);
+              
+              // Create a promise for this transcript
+              const promiseData = (() => {
+                let resolve: () => void = () => {};
+                const promise = new Promise<void>((res) => { resolve = res; });
+                return { resolve, promise };
+              })();
+              transcriptPromises.current.set(item.id, promiseData);
               break;
             }
           }
@@ -252,18 +279,36 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                   // Always append through the proper API
                   sendCopilotMessage(userMessage, { followUp: false });
                   
+                  // Resolve the promise for this transcript
+                  const promiseData = transcriptPromises.current.get(itemId);
+                  if (promiseData) {
+                    promiseData.resolve();
+                    transcriptPromises.current.delete(itemId);
+                  }
+                  
                   // Now flush any pending assistant messages that were waiting for this user transcript
                   if (pendingAssistantMessages.current.length > 0) {
                     // Capture the messages to flush before clearing
                     const messagesToFlush = [...pendingAssistantMessages.current];
                     pendingAssistantMessages.current = [];
                     
-                    // Use setTimeout to ensure the user message state update completes first
-                    setTimeout(() => {
-                      for (const assistantMsg of messagesToFlush) {
-                        sendCopilotMessage(assistantMsg, { followUp: false });
+                    // Send messages immediately - no delay needed with promise-based coordination
+                    for (const assistantMsg of messagesToFlush) {
+                      sendCopilotMessage(assistantMsg, { followUp: false });
+                    }
+                  }
+                  
+                  // Check for any pending action messages and send them now
+                  if (pendingActionMessages.current.size > 0) {
+                    const now = Date.now();
+                    for (const [actionId, data] of pendingActionMessages.current.entries()) {
+                      // Only send if the action has been waiting for at least 50ms
+                      // This ensures proper ordering without excessive delays
+                      if (now - data.timestamp >= 50) {
+                        executeAction(data.message.name, data.message.args, 'voice');
+                        pendingActionMessages.current.delete(actionId);
                       }
-                    }, 100);
+                    }
                   }
                 } catch (error) {
                   console.error("[RealtimeChat] Error sending user message:", error);
@@ -334,6 +379,31 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         const handleVoiceAction = async () => {
           try {
             let result = null;
+            
+            // Check if we need to wait for any user transcripts
+            const transcriptWaitPromises = Array.from(transcriptPromises.current.values())
+              .map(data => data.promise);
+            
+            if (transcriptWaitPromises.length > 0) {
+              // Store the action to be executed after transcript arrives
+              pendingActionMessages.current.set(callId, {
+                message: { name: toolName, args },
+                timestamp: Date.now()
+              });
+              
+              // Wait for all pending transcripts with a timeout
+              await Promise.race([
+                Promise.all(transcriptWaitPromises),
+                new Promise(resolve => setTimeout(resolve, 1000)) // 1s max wait
+              ]);
+              
+              // Remove from pending if it was executed
+              if (!pendingActionMessages.current.has(callId)) {
+                // Action was already executed via transcript arrival
+                return;
+              }
+              pendingActionMessages.current.delete(callId);
+            }
             
             // Try to execute through CopilotKit's action system first
             // This will handle GenerativeUI rendering automatically
