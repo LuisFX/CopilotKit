@@ -67,7 +67,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
   
   const chatResult = useCopilotChat();
   const sendCopilotMessage = chatResult?.sendMessage;
-  const { executeVoiceAction, sendVoiceGenerativeUI } = useRealtimeActionHandler();
+  const { executeAction } = useRealtimeActionHandler();
   
   // WebRTC references
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -208,11 +208,21 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
                 console.log(`[${timestamp}] USER DUPLICATE BLOCKED: ${itemId} (already sent as ${existingId})`);
               } else {
                 sentMessages.current.set(messageKey, itemId);
-                sendCopilotMessage({
+                // Send as regular message with voice metadata
+                const userMessage = {
                   id: itemId,
                   role: "user",
                   content: transcript,
-                });
+                  metadata: {
+                    source: 'voice',
+                    voiceData: {
+                      timestamp: Date.now(),
+                      transcript: transcript
+                    },
+                    skipInference: false // User messages can trigger inference
+                  }
+                };
+                sendCopilotMessage(userMessage as any);
               }
             }
           }
@@ -231,11 +241,21 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
           console.log(`[${timestamp}] ASSISTANT TRANSCRIPT: ${itemId} | "${transcript.substring(0, 50)}..."`);
           
           if (sendCopilotMessage) {
-            sendCopilotMessage({
+            // Send as regular message with voice metadata
+            const assistantMessage = {
               id: itemId,
               role: "assistant",
               content: transcript,
-            });
+              metadata: {
+                source: 'voice',
+                voiceData: {
+                  timestamp: Date.now(),
+                  transcript: transcript
+                },
+                skipInference: true // Assistant responses don't trigger inference
+              }
+            };
+            sendCopilotMessage(assistantMessage as any);
           }
         }
         break;
@@ -259,7 +279,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
             // Try to execute through CopilotKit's action system first
             // This will handle GenerativeUI rendering automatically
             try {
-              result = await executeVoiceAction(toolName, args);
+              result = await executeAction(toolName, args, 'voice');
               console.log(`[RealtimeChat] Voice action executed for ${toolName}`);
             } catch (actionError) {
               // Action might not exist in CopilotKit, try custom handler
@@ -359,7 +379,7 @@ export function useRealtimeChat(config: RealtimeConfig): UseRealtimeChatReturn {
         }
       }
     }
-  }, [sendCopilotMessage, config.debug, config.onToolCall, executeVoiceAction, sendVoiceGenerativeUI]);
+  }, [sendCopilotMessage, config.debug, config.onToolCall, executeAction]);
   
   // Connect to OpenAI Realtime
   const connect = useCallback(async () => {

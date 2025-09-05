@@ -20,15 +20,23 @@ type MessageType =
   | "ActionExecutionMessage"
   | "ResultMessage"
   | "AgentStateMessage"
-  | "ImageMessage"
-  | "RealtimeActionExecutionMessage"
-  | "VoiceTranscriptMessage";
+  | "ImageMessage";
 
 export class Message {
   type: MessageType;
   id: BaseMessageOutput["id"];
   createdAt: BaseMessageOutput["createdAt"];
   status: MessageStatus;
+  // Optional metadata for voice/realtime context
+  metadata?: {
+    source?: 'text' | 'voice' | 'api';
+    voiceData?: {
+      confidence?: number;
+      timestamp?: number;
+      transcript?: string;
+    };
+    skipInference?: boolean;  // Per-message control over AI inference
+  };
 
   constructor(props: any) {
     props.id ??= randomId();
@@ -74,6 +82,14 @@ export class TextMessage extends Message implements TextMessageConstructorOption
   constructor(props: TextMessageConstructorOptions) {
     super(props);
     this.type = "TextMessage";
+    // Voice transcripts can be regular text messages with metadata
+    if ((props as any).audioData) {
+      this.metadata = {
+        ...this.metadata,
+        source: 'voice',
+        voiceData: (props as any).audioData
+      };
+    }
   }
 }
 
@@ -89,9 +105,16 @@ export class ActionExecutionMessage
   name: ActionExecutionMessageInput["name"];
   arguments: Record<string, any>;
   parentMessageId: ActionExecutionMessageInput["parentMessageId"];
+  // Optional realtime-specific status tracking
+  realtimeStatus?: "pending" | "executing" | "completed" | "failed";
+  
   constructor(props: ActionExecutionMessageConstructorOptions) {
     super(props);
     this.type = "ActionExecutionMessage";
+    // Preserve any realtime-specific status if provided
+    if ('realtimeStatus' in props) {
+      this.realtimeStatus = (props as any).realtimeStatus;
+    }
   }
 }
 

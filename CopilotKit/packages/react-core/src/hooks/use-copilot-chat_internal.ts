@@ -236,7 +236,6 @@ export function useCopilotChat(options: UseCopilotChatOptions = {}): UseCopilotC
     langGraphInterruptAction,
     setLangGraphInterruptAction,
     chatSuggestionConfiguration,
-    realtimeMode,
 
     runtimeClient,
   } = useCopilotContext();
@@ -397,7 +396,6 @@ export function useCopilotChat(options: UseCopilotChatOptions = {}): UseCopilotC
     langGraphInterruptAction,
     setLangGraphInterruptAction,
     disableSystemMessage: options.disableSystemMessage,
-    realtimeMode,
   });
 
   const latestAppend = useUpdatedRef(append);

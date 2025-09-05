@@ -161,12 +161,6 @@ export type UseChatOptions = {
   setLangGraphInterruptAction: LangGraphInterruptActionSetter;
 
   disableSystemMessage?: boolean;
-
-  /**
-   * Enable realtime mode for external conversation handling.
-   * When true, messages won't trigger AI inference.
-   */
-  realtimeMode?: boolean;
 };
 
 export type UseChatHelpers = {
@@ -231,7 +225,6 @@ export function useChat(options: UseChatOptions): UseChatHelpers {
     langGraphInterruptAction,
     setLangGraphInterruptAction,
     disableSystemMessage = false,
-    realtimeMode = false,
   } = options;
   const runChatCompletionRef = useRef<(previousMessages: Message[]) => Promise<Message[]>>();
   const addErrorToast = useErrorToast();
@@ -941,8 +934,9 @@ export function useChat(options: UseChatOptions): UseChatHelpers {
 
   const append = useAsyncCallback(
     async (message: Message, options?: AppendMessageOptions): Promise<void> => {
-      // In realtime mode, never trigger inference
-      const followUp = realtimeMode ? false : (options?.followUp ?? true);
+      // Check if this specific message should skip inference
+      const skipInference = (message as any).metadata?.skipInference;
+      const followUp = skipInference ? false : (options?.followUp ?? true);
       if (isLoading) {
         pendingAppendsRef.current.push({ message, followUp });
         return;
@@ -954,7 +948,7 @@ export function useChat(options: UseChatOptions): UseChatHelpers {
         return runChatCompletionAndHandleFunctionCall(newMessages);
       }
     },
-    [isLoading, messages, setMessages, runChatCompletionAndHandleFunctionCall, realtimeMode],
+    [isLoading, messages, setMessages, runChatCompletionAndHandleFunctionCall],
   );
 
   const reload = useAsyncCallback(

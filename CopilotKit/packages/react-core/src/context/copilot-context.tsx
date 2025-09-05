@@ -233,13 +233,6 @@ export interface CopilotContextParams {
   // banner error state
   bannerError: CopilotKitError | null;
   setBannerError: React.Dispatch<React.SetStateAction<CopilotKitError | null>>;
-
-  /**
-   * Enable realtime mode for external conversation handling.
-   * When true, CopilotKit acts as a display and tool execution layer only,
-   * without triggering its own AI inference.
-   */
-  realtimeMode?: boolean;
 }
 
 const emptyCopilotContext: CopilotContextParams = {
@@ -313,7 +306,6 @@ const emptyCopilotContext: CopilotContextParams = {
   onError: undefined,
   bannerError: null,
   setBannerError: () => {},
-  realtimeMode: false,
 };
 
 export const CopilotContext = React.createContext<CopilotContextParams>(emptyCopilotContext);

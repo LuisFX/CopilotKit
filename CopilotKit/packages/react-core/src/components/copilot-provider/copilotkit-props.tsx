@@ -99,18 +99,6 @@ export interface CopilotKitProps {
   credentials?: RequestCredentials;
 
   /**
-   * Enable realtime mode for external conversation handling (e.g., OpenAI Realtime).
-   * When enabled, CopilotKit will not trigger inference for messages, acting as a
-   * display and tool execution layer only.
-   * 
-   * @default false
-   * @remarks
-   * Use this when integrating with external AI systems that handle their own conversation flow,
-   * such as OpenAI's Realtime API. Messages will be displayed but won't trigger AI responses.
-   */
-  realtimeMode?: boolean;
-
-  /**
    * Whether to show the dev console.
    *
    * Set to `true` to show error banners and toasts, `false` to hide all error UI.
