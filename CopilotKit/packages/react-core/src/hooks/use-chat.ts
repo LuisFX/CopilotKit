@@ -934,7 +934,10 @@ export function useChat(options: UseChatOptions): UseChatHelpers {
 
   const append = useAsyncCallback(
     async (message: Message, options?: AppendMessageOptions): Promise<void> => {
-      const followUp = options?.followUp ?? true;
+      // Check if this specific message should skip inference
+      const skipInference = (message as any).metadata?.skipInference;
+      const followUp = skipInference ? false : (options?.followUp ?? true);
+      
       if (isLoading) {
         pendingAppendsRef.current.push({ message, followUp });
         return;

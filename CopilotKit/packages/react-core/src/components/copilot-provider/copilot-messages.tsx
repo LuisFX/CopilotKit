@@ -117,10 +117,28 @@ export function MessagesTapProvider({ children }: { children: React.ReactNode })
  */
 
 export function CopilotMessages({ children }: { children: ReactNode }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessagesRaw] = useState<Message[]>([]);
   const lastLoadedThreadId = useRef<string>();
   const lastLoadedAgentName = useRef<string>();
   const lastLoadedMessages = useRef<string>();
+  
+  // Wrapper to log all setMessages calls
+  const setMessages = useCallback((newMessages: Message[] | ((prev: Message[]) => Message[])) => {
+    if (typeof newMessages === 'function') {
+      setMessagesRaw((prev) => {
+        const updated = newMessages(prev);
+        console.log(`📝 [MESSAGES UPDATE] Function update: ${prev.length} -> ${updated.length} messages`);
+        return updated;
+      });
+    } else {
+      console.log(`📝 [MESSAGES SET] Direct set: ${newMessages.length} messages`);
+      const stack = new Error().stack;
+      if (stack?.includes('fetchMessages')) {
+        console.log(`   ⚠️ Called from fetchMessages - this resets conversation!`);
+      }
+      setMessagesRaw(newMessages);
+    }
+  }, []);
 
   const { updateTapMessages } = useMessagesTap();
 
@@ -262,6 +280,11 @@ export function CopilotMessages({ children }: { children: ReactNode }) {
       return;
     }
 
+    console.log("⚠️ [MESSAGES CONTEXT] Loading agent state - this might reset messages!");
+    console.log(`   ThreadId: ${threadId} (was: ${lastLoadedThreadId.current})`);
+    console.log(`   Agent: ${agentSession?.agentName} (was: ${lastLoadedAgentName.current})`);
+    console.log(`   Current messages count: ${messages.length}`);
+
     const fetchMessages = async () => {
       if (!agentSession?.agentName) return;
 
@@ -287,8 +310,9 @@ export function CopilotMessages({ children }: { children: ReactNode }) {
         lastLoadedThreadId.current = threadId;
         lastLoadedAgentName.current = agentSession?.agentName;
 
-        const messages = loadMessagesFromJsonRepresentation(JSON.parse(newMessages || "[]"));
-        setMessages(messages);
+        const loadedMessages = loadMessagesFromJsonRepresentation(JSON.parse(newMessages || "[]"));
+        console.log(`🔄 [MESSAGES RESET] Replacing ${messages.length} messages with ${loadedMessages.length} from agent state`);
+        setMessages(loadedMessages);
       }
     };
     void fetchMessages();
