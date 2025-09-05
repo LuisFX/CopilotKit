@@ -153,21 +153,34 @@ export function VoiceControls({ tools = [], onToolCall }: VoiceControlsProps) {
             </Button>
           )}
 
+          {status === "connecting" && (
+            <Button disabled size="sm">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Connecting...
+            </Button>
+          )}
+
           {status === "connected" && (
             <Button
               onClick={handleDisconnect}
               size="sm"
               variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
             >
               <PhoneOff className="w-4 h-4 mr-2" />
               End Call
             </Button>
           )}
 
-          {status === "connecting" && (
-            <Button disabled size="sm">
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Connecting...
+          {status === "error" && (
+            <Button
+              onClick={handleConnect}
+              size="sm"
+              variant="outline"
+              className="border-red-500 text-red-600"
+            >
+              <Phone className="w-4 h-4 mr-2" />
+              Reconnect
             </Button>
           )}
         </div>
